@@ -1,21 +1,18 @@
 ﻿using HttpScript.Parsing.Tokens;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace HttpScript.Parsing
 {
     public partial class Lexer
     {
         private readonly string buffer;
-        private readonly bool breakoutOnly;
+        private readonly Queue<Token> lookAhead = new();
 
         private LexerState currentState;
-
-        enum Mode
-        {
-            Http,
-            Breakout,
-        }
+        private LexerState beforeLookAheadState;
+        private ParsingMode parsingMode;
 
         struct LexerState
         {
@@ -23,7 +20,6 @@ namespace HttpScript.Parsing
             public int PreviousLineOffset { get; init; }
             public int LineStartOffset { get; init; }
             public int LineNumber { get; init; }
-            public Mode Mode { get; init; }
 
             public static Range GetRange(LexerState start, LexerState end)
             {
@@ -50,10 +46,9 @@ namespace HttpScript.Parsing
             }
         }
 
-        public Lexer(string content, bool breakoutOnly)
+        public Lexer(string content)
         {
             this.buffer = content;
-            this.breakoutOnly = breakoutOnly;
 
             this.currentState = new()
             {
@@ -61,69 +56,117 @@ namespace HttpScript.Parsing
                 LineNumber = 1,
                 LineStartOffset = 0,
                 PreviousLineOffset = 0,
-                Mode = breakoutOnly ? Mode.Breakout : Mode.Http,
             };
+        }
+
+        public ParsingMode ParsingMode
+        {
+            get
+            {
+                return this.parsingMode;
+            }
+            set
+            {
+                this.parsingMode = value;
+
+                // we're switching modes, we should clear the
+                // lookahead queue because it is no longer valid
+                this.lookAhead.Clear();
+                this.currentState = this.beforeLookAheadState;
+            }
+        }
+
+        public bool TryPeekToken(out Token token)
+        {
+            var success = lookAhead.TryPeek(out var maybeToken);
+
+            if (!success && TryLookAheadAndAdvance())
+            {
+                success = lookAhead.TryPeek(out maybeToken);
+            }
+
+            token = maybeToken ?? Token.Empty;
+            return success;
+        }
+
+        public bool TryConsumeToken(out Token token)
+        {
+            var success = lookAhead.TryDequeue(out var maybeToken);
+
+            if (!success && TryLookAheadAndAdvance())
+            {
+                success = lookAhead.TryDequeue(out maybeToken);
+            }
+
+            token = maybeToken ?? Token.Empty;
+            return success;
+        }
+
+        private bool TryLookAheadAndAdvance()
+        {
+            Debug.Assert(this.lookAhead.Count == 0);
+
+            // we're going to enqueue some tokens into the lookahead queue so
+            // we don't have to do double parsing when someone peeks and then
+            // consumes.
+            // but if someone changes the parsing mode, those tokens are bad
+            // and we should rever to the previous state.
+            this.beforeLookAheadState = this.currentState;
+
+            // convention is that if hasValidToken == false, then no tokens
+            // were produced (including error tokens). if an error token is
+            // produced, that means we know what the problem is and we were
+            // able to recover. if we cannot recover in a specific way, we
+            // try to do so in a generic way below.
+            var hasValidToken = TryGetToken(out var parsedToken, out var errorToken);
+
+            if (hasValidToken)
+            {
+                if (errorToken != null)
+                {
+                    lookAhead.Enqueue(errorToken);
+                }
+
+                lookAhead.Enqueue(parsedToken);
+            }
+
+            if (!hasValidToken && !IsAtEndOfBuffer())
+            {
+                // we'll skip characters until we can match a valid token
+                // again (or until we hit the end of the file) and report
+                // the whole range of invalid stuff as a single error.
+                AdvanceToValidToken();
+
+                // we've recovered
+                hasValidToken = true;
+            }
+
+            if (hasValidToken && lookAhead.Count != 0)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         public IEnumerable<Token> GetTokens()
         {
-            // errors are just tokens, it is up to the parser to deal
-            // with them. anyway the token should contain all the information
-            // the parser should need to report the error.
-            //
-            // we basically always know what we were expecting so we can just
-            // act as if we found it and anyway finish the previous token, then
-            // report an additional error token.
-            //
-            // that allows us to lazily go through the file in the lexer in a
-            // single pass
-
-            bool hasValidToken;
-
-            do
+            while (TryConsumeToken(out var token))
             {
-                // convention is that if hasValidToken == false, then no tokens
-                // were produced (including error tokens). if an error token is
-                // produced, that means we know what the problem is and we were
-                // able to recover. if we cannot recover in a specific way, we
-                // try to do so in a generic way below.
-                hasValidToken = TryGetToken(out var token, out var errorToken);
-
-                if (hasValidToken)
-                {
-                    yield return token;
-
-                    if (errorToken != null)
-                    {
-                        yield return errorToken;
-                    }
-                }
-
-
-                if (!hasValidToken && !IsAtEndOfBuffer())
-                {
-                    // we'll skip characters until we can match a valid token
-                    // again (or until we hit the end of the file) and report
-                    // the whole range of invalid stuff as a single error.
-                    var error = AdvanceToValidToken();
-                    yield return error;
-
-                    // we've recovered
-                    hasValidToken = true;
-                }
-            } while (hasValidToken);
+                yield return token;
+            }
         }
 
         private bool TryGetToken(out Token token, out ErrorToken? errorToken)
         {
-            var result = this.currentState.Mode == Mode.Breakout
+            var result = this.ParsingMode == ParsingMode.Breakout
                 ? TryGetBreakoutToken(out token, out errorToken)
                 : TryGetHttpToken(out token, out errorToken);
 
             return result;
         }
 
-        private ErrorToken AdvanceToValidToken()
+        private void AdvanceToValidToken()
         {
             var errorStartPos = this.currentState;
             var errorEndPos = this.currentState;
@@ -135,36 +178,46 @@ namespace HttpScript.Parsing
                 {
                     errorEndPos = this.currentState;
 
-                    // we're throwing away the result because we don't really have
-                    // a clean way of handling it. it doesn't matter that much if
-                    // the lexer is *slightly* slower in that case anyway
-                    var result = this.currentState.Mode == Mode.Breakout
-                        ? TryGetBreakoutToken(out _, out _)
-                        : TryGetHttpToken(out _, out _);
+                    Token token;
+                    ErrorToken? errorToken;
 
-                    // since we threw away the result we need to go back to *before*
-                    // the token we just parsed, otherwise that token is lost
-                    this.currentState = errorEndPos;
+                    var result = this.ParsingMode == ParsingMode.Breakout
+                        ? TryGetBreakoutToken(out token, out errorToken)
+                        : TryGetHttpToken(out token, out errorToken);
 
                     if (result)
                     {
                         // ok we found a good token now, or there's nothing more to
-                        // be found, we should return our error
-                        return new ErrorToken()
+                        // be found, we should enqueue our error
+                        lookAhead.Enqueue(new ErrorToken()
                         {
                             Range = LexerState.GetRange(errorStartPos, errorEndPos),
                             ErrorCode = ErrorType.UnknownToken,
-                        };
+                        });
+
+                        // if the token was faulty in predictable ways we should
+                        // first enqueue that error now
+                        if (errorToken != null)
+                        {
+                            lookAhead.Enqueue(errorToken);
+                        }
+
+                        // finally we should enqueue the good token we found
+                        lookAhead.Enqueue(token);
+
+                        return;
                     }
                 }
                 else
                 {
                     // we reached the end of the buffer
-                    return new ErrorToken()
+                    lookAhead.Enqueue(new ErrorToken()
                     {
                         Range = LexerState.GetRange(errorStartPos, errorEndPos),
                         ErrorCode = ErrorType.UnknownToken,
-                    };
+                    });
+
+                    return;
                 }
             }
 
@@ -328,7 +381,6 @@ namespace HttpScript.Parsing
                 LineStartOffset = newLineStartOffset,
                 PreviousLineOffset = previousLineOffset,
                 LineNumber = newLineNumber,
-                Mode = this.currentState.Mode,
             };
 
             return character;

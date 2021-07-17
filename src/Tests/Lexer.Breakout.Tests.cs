@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Xunit;
 using static HttpScript.Parsing.Tokens.TokenType;
+using static Tests.TokenAsserts;
 
 namespace Tests
 {
-    public class LexerBreakoutTest
+    public class LexerBreakoutTests
     {
         [Theory]
         [InlineData(WhiteSpace, " \t\n\r\n\r \n")]
@@ -72,8 +73,8 @@ namespace Tests
 
             var asserts = new List<System.Action<Token>>()
             {
-                (t) => Assert.Equal(tokenType, t.Type),
                 (t) => Assert.Equal(errorType, (t as ErrorToken).ErrorCode),
+                (t) => Assert.Equal(tokenType, t.Type),
             };
 
             if (program.EndsWith('\n'))
@@ -83,10 +84,7 @@ namespace Tests
 
             Assert.Collection(tokens, asserts.ToArray());
 
-            var token = tokens.First();
-
-            // the token should have the correct type
-            Assert.Equal(tokenType, token.Type);
+            var token = tokens.Skip(1).First();
 
             AssertContent(content, token);
         }
@@ -149,8 +147,8 @@ $myVal = symbol.method($something, test.var, 'some string');
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Operator, OperatorType.Assignment, t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(String, "unfinished string", t),
                 (t) => AssertToken(Error, ErrorType.MissingEndQuote, t),
+                (t) => AssertToken(String, "unfinished string", t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Error, ErrorType.UnknownToken, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -177,32 +175,8 @@ $myVal = symbol.method($something, test.var, 'some string');
             );
         }
 
-        private static void AssertToken(TokenType expectedType, Token token)
-            => AssertToken(expectedType, (object)null, token);
 
-        private static void AssertToken<T>(TokenType expectedType, T expectedContent, Token token)
-        {
-            Assert.Equal(expectedType, token.Type);
-
-            AssertContent(expectedContent, token);
-        }
-
-        private static void AssertContent(object expected, Token token)
-        {
-            object content = token switch
-            {
-                { Type: Error } => (token as ErrorToken).ErrorCode,
-                { Type: String } => (token as StringToken).Value,
-                { Type: Symbol } => (token as SymbolToken).Name,
-                { Type: Paren } => ((token as ParenToken).ParenType, (token as ParenToken).ParenMode),
-                { Type: Operator } => (token as OperatorToken).OperatorType,
-
-                _ => null,
-            };
-
-            Assert.Equal(expected, content);
-        }
-
-        private static List<Token> RunLexer(string script) => new Lexer(script, breakoutOnly: true).GetTokens().ToList();
+        private static List<Token> RunLexer(string script) =>
+            new Lexer(script) { ParsingMode = ParsingMode.Breakout }.GetTokens().ToList();
     }
 }
