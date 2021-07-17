@@ -1,0 +1,7 @@
+{{ setBaseUrl('https://api.github.com/') }}
+{{
+setDefaultHeaders()
+}}
+
+GET /users/joukevandermaas
+Accept: application/vnd.github.v3+json
