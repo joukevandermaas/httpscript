@@ -5,5 +5,6 @@
         Assignment,
         MemberAccess,
         Separator,
+        EndStatement,
     }
 }

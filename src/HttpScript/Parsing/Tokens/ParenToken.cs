@@ -8,10 +8,11 @@
         }
             
         public ParenType ParenType { get; init; }
+        public ParenMode ParenMode { get; init; }
 
         public override string ToString()
         {
-            return base.ToString() + $" ({ParenType})";
+            return base.ToString() + $" ({ParenMode}{ParenType})";
         }
     }
 }

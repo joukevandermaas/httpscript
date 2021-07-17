@@ -2,7 +2,8 @@
 {
     public enum ParenType
     {
-        Open,
-        Close,
+        Round,
+        Square,
+        Curly,
     }
 }

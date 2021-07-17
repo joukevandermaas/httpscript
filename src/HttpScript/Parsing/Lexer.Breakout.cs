@@ -71,7 +71,7 @@ namespace HttpScript.Parsing
         {
             var prevPos = this.currentState;
 
-            if (TryMatchAndAdvance(out var op, '.', '=', ','))
+            if (TryMatchAndAdvance(out var op, '.', '=', ',', ';'))
             {
                 token = new OperatorToken()
                 {
@@ -81,6 +81,7 @@ namespace HttpScript.Parsing
                         '.' => OperatorType.MemberAccess,
                         '=' => OperatorType.Assignment,
                         ',' => OperatorType.Separator,
+                        ';' => OperatorType.EndStatement,
 
                         // just in case we forget to add it here
                         _ => throw new NotImplementedException(),
@@ -103,7 +104,32 @@ namespace HttpScript.Parsing
                 token = new ParenToken()
                 {
                     Range = LexerState.GetRange(prevPos, this.currentState),
-                    ParenType = paren == '(' ? ParenType.Open : ParenType.Close,
+                    ParenType = ParenType.Round,
+                    ParenMode = paren == '(' ? ParenMode.Open : ParenMode.Close,
+                };
+
+                return true;
+            }
+
+            if (TryMatchAndAdvance(out var bracket, '[', ']'))
+            {
+                token = new ParenToken()
+                {
+                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    ParenType = ParenType.Square,
+                    ParenMode = bracket == '[' ? ParenMode.Open : ParenMode.Close,
+                };
+
+                return true;
+            }
+
+            if (TryMatchAndAdvance(out var curly, '{', '}'))
+            {
+                token = new ParenToken()
+                {
+                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    ParenType = ParenType.Curly,
+                    ParenMode = curly == '{' ? ParenMode.Open : ParenMode.Close,
                 };
 
                 return true;

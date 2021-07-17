@@ -25,8 +25,6 @@ namespace Tests
         [InlineData(Operator, "=", OperatorType.Assignment)]
         [InlineData(Operator, ".", OperatorType.MemberAccess)]
         [InlineData(Operator, ",", OperatorType.Separator)]
-        [InlineData(Paren, "(", ParenType.Open)]
-        [InlineData(Paren, ")", ParenType.Close)]
         public void RecognizesSingleToken(TokenType tokenType, string program, object content = null)
         {
             var tokens = RunLexer(program);
@@ -43,6 +41,18 @@ namespace Tests
             Assert.Equal(program.Length, token.Range.EndOffset);
 
             AssertContent(content, token);
+        }
+
+        [Theory]
+        [InlineData("(", ParenType.Round, ParenMode.Open)]
+        [InlineData(")", ParenType.Round, ParenMode.Close)]
+        [InlineData("[", ParenType.Square, ParenMode.Open)]
+        [InlineData("]", ParenType.Square, ParenMode.Close)]
+        [InlineData("{", ParenType.Curly, ParenMode.Open)]
+        [InlineData("}", ParenType.Curly, ParenMode.Close)]
+        public void RecognizesSingleParen(string program, ParenType parenType, ParenMode parenMode)
+        {
+            RecognizesSingleToken(Paren, program, (parenType, parenMode));
         }
 
         [Theory]
@@ -86,7 +96,7 @@ namespace Tests
         {
             const string program = @"
 // assign the thing to the thing
-$myVal = symbol.method($something, test.var, 'some string')
+$myVal = symbol.method($something, test.var, 'some string');
 ";
 
             var tokens = RunLexer(program);
@@ -102,7 +112,7 @@ $myVal = symbol.method($something, test.var, 'some string')
                 (t) => AssertToken(Symbol, "symbol", t),
                 (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
                 (t) => AssertToken(Symbol, "method", t),
-                (t) => AssertToken(Paren, ParenType.Open, t),
+                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
                 (t) => AssertToken(Symbol, "$something", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -112,7 +122,8 @@ $myVal = symbol.method($something, test.var, 'some string')
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(String, "some string", t),
-                (t) => AssertToken(Paren, ParenType.Close, t),
+                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
+                (t) => AssertToken(Operator, OperatorType.EndStatement, t),
                 (t) => AssertToken(WhiteSpace, t),
             };
 
@@ -126,7 +137,7 @@ $myVal = symbol.method($something, test.var, 'some string')
 // assign the thing to the thing
 $something = ""unfinished string
 +
-$myVal = symbol.method($something, test.var, 'some string')
+$myVal = symbol.method($something, test.var, 'some string');
 ";
 
             var tokens = RunLexer(program);
@@ -150,7 +161,7 @@ $myVal = symbol.method($something, test.var, 'some string')
                 (t) => AssertToken(Symbol, "symbol", t),
                 (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
                 (t) => AssertToken(Symbol, "method", t),
-                (t) => AssertToken(Paren, ParenType.Open, t),
+                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
                 (t) => AssertToken(Symbol, "$something", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -160,7 +171,8 @@ $myVal = symbol.method($something, test.var, 'some string')
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(String, "some string", t),
-                (t) => AssertToken(Paren, ParenType.Close, t),
+                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
+                (t) => AssertToken(Operator, OperatorType.EndStatement, t),
                 (t) => AssertToken(WhiteSpace, t)
             );
         }
@@ -182,7 +194,7 @@ $myVal = symbol.method($something, test.var, 'some string')
                 { Type: Error } => (token as ErrorToken).ErrorCode,
                 { Type: String } => (token as StringToken).Value,
                 { Type: Symbol } => (token as SymbolToken).Name,
-                { Type: Paren } => (token as ParenToken).ParenType,
+                { Type: Paren } => ((token as ParenToken).ParenType, (token as ParenToken).ParenMode),
                 { Type: Operator } => (token as OperatorToken).OperatorType,
 
                 _ => null,
