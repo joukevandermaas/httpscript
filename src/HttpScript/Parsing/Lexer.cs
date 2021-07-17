@@ -142,6 +142,10 @@ namespace HttpScript.Parsing
                         ? TryGetBreakoutToken(out _, out _)
                         : TryGetHttpToken(out _, out _);
 
+                    // since we threw away the result we need to go back to *before*
+                    // the token we just parsed, otherwise that token is lost
+                    this.currentState = errorEndPos;
+
                     if (result)
                     {
                         // ok we found a good token now, or there's nothing more to
@@ -324,6 +328,7 @@ namespace HttpScript.Parsing
                 LineStartOffset = newLineStartOffset,
                 PreviousLineOffset = previousLineOffset,
                 LineNumber = newLineNumber,
+                Mode = this.currentState.Mode,
             };
 
             return character;

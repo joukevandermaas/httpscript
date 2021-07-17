@@ -124,6 +124,8 @@ namespace HttpScript.Parsing
 
                 while (TryPeek(out var chr))
                 {
+                    var skipEndQuote = true;
+
                     if (chr == '\n')
                     {
                         errorToken = new ErrorToken()
@@ -137,6 +139,11 @@ namespace HttpScript.Parsing
                         // pretend that we found a close quote so we can
                         // lex the rest of the file
                         chr = openQuote;
+
+                        // however we should not be skipping this newline
+                        // character because it should be considered whitespace,
+                        // not part of the string
+                        skipEndQuote = false;
                     }
 
                     if (chr == openQuote)
@@ -146,8 +153,10 @@ namespace HttpScript.Parsing
                             prevPos.CharOffset + 1,
                             this.currentState.CharOffset - prevPos.CharOffset - 1);
 
-                        // we need to skip the end quote
-                        Skip();
+                        if (skipEndQuote)
+                        {
+                            Skip();
+                        }
 
                         token = new StringToken()
                         {
