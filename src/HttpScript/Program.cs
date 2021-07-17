@@ -7,7 +7,7 @@ namespace HttpScript
     {
         static void Main(string[] args)
         {
-            var lexer = new Lexer("$survey");
+            var lexer = new Lexer("$survey", breakoutOnly: false);
 
             var tokens = lexer.GetTokens().ToList();
         }

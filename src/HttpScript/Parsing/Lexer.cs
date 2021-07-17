@@ -6,16 +6,10 @@ namespace HttpScript.Parsing
 {
     public partial class Lexer
     {
-        private readonly string buffer = string.Empty;
+        private readonly string buffer;
+        private readonly bool breakoutOnly;
 
-        private LexerState currentState = new()
-        {
-            CharOffset = 0,
-            LineNumber = 1,
-            LineStartOffset = 0,
-            PreviousLineOffset = 0,
-            Mode = Mode.Breakout,
-        };
+        private LexerState currentState;
 
         enum Mode
         {
@@ -56,24 +50,120 @@ namespace HttpScript.Parsing
             }
         }
 
-        public Lexer(string content)
+        public Lexer(string content, bool breakoutOnly)
         {
             this.buffer = content;
+            this.breakoutOnly = breakoutOnly;
+
+            this.currentState = new()
+            {
+                CharOffset = 0,
+                LineNumber = 1,
+                LineStartOffset = 0,
+                PreviousLineOffset = 0,
+                Mode = breakoutOnly ? Mode.Breakout : Mode.Http,
+            };
         }
 
         public IEnumerable<Token> GetTokens()
         {
-            while (TryGetToken(out var token))
+            // errors are just tokens, it is up to the parser to deal
+            // with them. anyway the token should contain all the information
+            // the parser should need to report the error.
+            //
+            // we basically always know what we were expecting so we can just
+            // act as if we found it and anyway finish the previous token, then
+            // report an additional error token.
+            //
+            // that allows us to lazily go through the file in the lexer in a
+            // single pass
+
+            bool hasValidToken;
+
+            do
             {
-                yield return token;
-            }
+                // convention is that if hasValidToken == false, then no tokens
+                // were produced (including error tokens). if an error token is
+                // produced, that means we know what the problem is and we were
+                // able to recover. if we cannot recover in a specific way, we
+                // try to do so in a generic way below.
+                hasValidToken = TryGetToken(out var token, out var errorToken);
+
+                if (hasValidToken)
+                {
+                    yield return token;
+
+                    if (errorToken != null)
+                    {
+                        yield return errorToken;
+                    }
+                }
+
+
+                if (!hasValidToken && !IsAtEndOfBuffer())
+                {
+                    // we'll skip characters until we can match a valid token
+                    // again (or until we hit the end of the file) and report
+                    // the whole range of invalid stuff as a single error.
+                    var error = AdvanceToValidToken();
+                    yield return error;
+
+                    // we've recovered
+                    hasValidToken = true;
+                }
+            } while (hasValidToken);
         }
 
-        private bool TryGetToken(out Token token)
+        private bool TryGetToken(out Token token, out ErrorToken? errorToken)
         {
-            return this.currentState.Mode == Mode.Breakout
-                ? TryGetBreakoutToken(out token)
-                : TryGetHttpToken(out token);
+            var result = this.currentState.Mode == Mode.Breakout
+                ? TryGetBreakoutToken(out token, out errorToken)
+                : TryGetHttpToken(out token, out errorToken);
+
+            return result;
+        }
+
+        private ErrorToken AdvanceToValidToken()
+        {
+            var errorStartPos = this.currentState;
+            var errorEndPos = this.currentState;
+
+            while (true)
+            {
+                // skip the current character, then try to match a token again
+                if (TrySkip())
+                {
+                    errorEndPos = this.currentState;
+
+                    // we're throwing away the result because we don't really have
+                    // a clean way of handling it. it doesn't matter that much if
+                    // the lexer is *slightly* slower in that case anyway
+                    var result = this.currentState.Mode == Mode.Breakout
+                        ? TryGetBreakoutToken(out _, out _)
+                        : TryGetHttpToken(out _, out _);
+
+                    if (result)
+                    {
+                        // ok we found a good token now, or there's nothing more to
+                        // be found, we should return our error
+                        return new ErrorToken()
+                        {
+                            Range = LexerState.GetRange(errorStartPos, errorEndPos),
+                            ErrorCode = ErrorType.UnknownToken,
+                        };
+                    }
+                }
+                else
+                {
+                    // we reached the end of the buffer
+                    return new ErrorToken()
+                    {
+                        Range = LexerState.GetRange(errorStartPos, errorEndPos),
+                        ErrorCode = ErrorType.UnknownToken,
+                    };
+                }
+            }
+
         }
 
         private bool TryGetWhiteSpaceToken(out Token token)

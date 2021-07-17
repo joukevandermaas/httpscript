@@ -3,11 +3,13 @@
     public enum TokenType
     {
         Unknown = 0,
-        WhiteSpace = 1,
-        String = 2,
-        Paren = 3,
-        Operator = 4,
-        Symbol = 5,
-        Comment = 6,
+        Error = 1,
+
+        WhiteSpace = 2,
+        String = 3,
+        Paren = 4,
+        Operator = 5,
+        Symbol = 6,
+        Comment = 7,
     }
 }

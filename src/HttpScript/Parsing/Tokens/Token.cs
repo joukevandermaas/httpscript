@@ -16,8 +16,13 @@ namespace HttpScript.Parsing.Tokens
         public override bool Equals(object? obj) =>
             obj is Token token && Equals(token);
 
-        public static bool operator ==(Token left, Token right) => left.Equals(right);
-        public static bool operator !=(Token left, Token right) => !(left == right);
+        public static bool operator ==(Token? left, Token? right) => 
+            // if both are null, they are equal
+            object.ReferenceEquals(left, null) && object.ReferenceEquals(right, null)
+            // if left is null but not right, they are not equal,
+            // otherwise 'equals' impl handles nullability
+            || (left?.Equals(right) ?? false);
+        public static bool operator !=(Token? left, Token? right) => !(left == right);
         public override int GetHashCode() => HashCode.Combine(Type, Range);
         public override string ToString() => $"{Type} <{Range}>";
     }

@@ -6,27 +6,33 @@ namespace HttpScript.Parsing
 {
     public partial class Lexer
     {
-        private bool TryGetBreakoutToken(out Token token)
+        private bool TryGetBreakoutToken(out Token token, out ErrorToken? errorToken)
         {
+            // most token types won't have lexer errors
+            errorToken = null;
+
             if (TryGetParenToken(out token)) { return true; }
             if (TryGetOperatorToken(out token)) { return true; }
             if (TryGetWhiteSpaceToken(out token)) { return true; }
-            if (TryGetCommentToken(out token)) { return true; }
-            if (TryGetStringToken(out token)) { return true; }
+            if (TryGetCommentToken(out token, out errorToken)) { return true; }
+            if (TryGetStringToken(out token, out errorToken)) { return true; }
             if (TryGetSymbolToken(out token)) { return true; }
 
+            // we don't know wtf is going on, we should let the main
+            // loop deal with this tho, we don't have enough info to
+            // emit an error token here
             return false;
         }
 
         private bool TryGetSymbolToken(out Token token)
         {
+            var prevPos = this.currentState;
+
             if (TryPeek(out var firstChr) && (
                 firstChr == '$' ||
                 firstChr == '_' ||
                 char.IsLetter(firstChr)))
             {
-                var prevPos = this.currentState;
-
                 // valid first characters include dollar,
                 // while subsequent ones cannot be
                 Skip();
@@ -56,6 +62,7 @@ namespace HttpScript.Parsing
                 return true;
             }
 
+            this.currentState = prevPos;
             token = Token.Empty;
             return false;
         }
@@ -106,8 +113,9 @@ namespace HttpScript.Parsing
             return false;
         }
 
-        private bool TryGetStringToken(out Token token)
+        private bool TryGetStringToken(out Token token, out ErrorToken? errorToken)
         {
+            errorToken = null;
             var prevPos = this.currentState;
 
             if (TryMatchAndAdvance(out var openQuote, '\'', '"'))
@@ -118,22 +126,33 @@ namespace HttpScript.Parsing
                 {
                     if (chr == '\n')
                     {
-                        // error, need to handle this somehow
+                        errorToken = new ErrorToken()
+                        {
+                            // debatable where the error should be, it kind of makes
+                            // sense to mark the whole string token
+                            Range = LexerState.GetRange(prevPos, this.currentState),
+                            ErrorCode = ErrorType.MissingEndQuote,
+                        };
+
+                        // pretend that we found a close quote so we can
+                        // lex the rest of the file
+                        chr = openQuote;
                     }
-                    else if (chr == openQuote)
+
+                    if (chr == openQuote)
                     {
                         // end of string
-                        var content = this.buffer.Substring(
+                        var stringContent = this.buffer.Substring(
                             prevPos.CharOffset + 1,
                             this.currentState.CharOffset - prevPos.CharOffset - 1);
 
-                        // skip the end quote
+                        // we need to skip the end quote
                         Skip();
 
                         token = new StringToken()
                         {
                             Range = LexerState.GetRange(prevPos, this.currentState),
-                            Value = content,
+                            Value = stringContent,
                         };
 
                         return true;
@@ -144,15 +163,41 @@ namespace HttpScript.Parsing
                         Skip();
                     }
                 }
+
+                // if we get here that means we've matched the open quote and then
+                // hit eof before ever seeing the closing quote, so that's an error
+                errorToken = new ErrorToken()
+                {
+                    // debatable where the error should be, it kind of makes
+                    // sense to mark the whole string token
+                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    ErrorCode = ErrorType.MissingEndQuote,
+                };
+
+                // however we can still just report the string token we have matched
+                // so far 
+                var unfinishedStringContent = this.buffer.Substring(
+                    prevPos.CharOffset + 1,
+                    this.currentState.CharOffset - prevPos.CharOffset - 1);
+
+                token = new StringToken()
+                {
+                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Value = unfinishedStringContent,
+                };
+
+                return true;
             }
 
+            this.currentState = prevPos;
             token = Token.Empty;
             return false;
         }
 
-        private bool TryGetCommentToken(out Token token)
+        private bool TryGetCommentToken(out Token token, out ErrorToken? errorToken)
         {
             var prevPos = this.currentState;
+            errorToken = null;
 
             if (TryMatchSequenceAndAdvance("//"))
             {
@@ -207,10 +252,26 @@ namespace HttpScript.Parsing
                 }
                 else
                 {
-                    // error, handle this somehow
+                    // we didn't find the end, but we can just assume
+                    // the rest of the file is the comment and report
+                    // an error.
+                    token = new()
+                    {
+                        Type = TokenType.Comment,
+                        Range = LexerState.GetRange(prevPos, this.currentState),
+                    };
+
+                    errorToken = new()
+                    {
+                        ErrorCode = ErrorType.MissingEndComment,
+                        Range = LexerState.GetRange(prevPos, this.currentState),
+                    };
+
+                    return true;
                 }
             }
 
+            this.currentState = prevPos;
             token = Token.Empty;
             return false;
         }
