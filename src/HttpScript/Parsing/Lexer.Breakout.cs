@@ -1,6 +1,5 @@
 ﻿using HttpScript.Parsing.Tokens;
 using System;
-using System.Collections.Generic;
 
 namespace HttpScript.Parsing
 {
@@ -26,22 +25,22 @@ namespace HttpScript.Parsing
 
         private bool TryGetSymbolToken(out Token token)
         {
-            var prevPos = this.currentState;
+            this.reader.CreateSnapshot();
 
-            if (TryPeek(out var firstChr) && (
+            if (this.reader.TryPeek(out var firstChr) && (
                 firstChr == '$' ||
                 firstChr == '_' ||
                 char.IsLetter(firstChr)))
             {
                 // valid first characters include dollar,
                 // while subsequent ones cannot be
-                Skip();
+                this.reader.Skip();
 
-                while (TryPeek(out var chr))
+                while (this.reader.TryPeek(out var chr))
                 {
                     if (char.IsLetter(chr) || chr == '_')
                     {
-                        Skip();
+                        this.reader.Skip();
                     }
                     else
                     {
@@ -49,33 +48,35 @@ namespace HttpScript.Parsing
                     }
                 }
 
+                var prevCharOffset = this.reader.SnapshotState.CharOffset;
+                var currCharOffset = this.reader.CurrentState.CharOffset;
                 var name = this.buffer.Substring(
-                    prevPos.CharOffset,
-                    this.currentState.CharOffset - prevPos.CharOffset);
+                    prevCharOffset,
+                    currCharOffset - prevCharOffset);
 
                 token = new SymbolToken()
                 {
                     Name = name,
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                 };
 
                 return true;
             }
 
-            this.currentState = prevPos;
+            this.reader.RestoreSnapshot();
             token = Token.Empty;
             return false;
         }
 
         private bool TryGetOperatorToken(out Token token)
         {
-            var prevPos = this.currentState;
+            this.reader.CreateSnapshot();
 
-            if (TryMatchAndAdvance(out var op, '.', '=', ',', ';'))
+            if (this.reader.TryMatchAndAdvance(out var op, '.', '=', ',', ';'))
             {
                 token = new OperatorToken()
                 {
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                     OperatorType = op switch
                     {
                         '.' => OperatorType.MemberAccess,
@@ -97,13 +98,13 @@ namespace HttpScript.Parsing
 
         private bool TryGetParenToken(out Token token)
         {
-            var prevPos = this.currentState;
+            this.reader.CreateSnapshot();
 
-            if (TryMatchAndAdvance(out var paren, '(', ')'))
+            if (this.reader.TryMatchAndAdvance(out var paren, '(', ')'))
             {
                 token = new ParenToken()
                 {
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                     ParenType = ParenType.Round,
                     ParenMode = paren == '(' ? ParenMode.Open : ParenMode.Close,
                 };
@@ -111,11 +112,11 @@ namespace HttpScript.Parsing
                 return true;
             }
 
-            if (TryMatchAndAdvance(out var bracket, '[', ']'))
+            if (this.reader.TryMatchAndAdvance(out var bracket, '[', ']'))
             {
                 token = new ParenToken()
                 {
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                     ParenType = ParenType.Square,
                     ParenMode = bracket == '[' ? ParenMode.Open : ParenMode.Close,
                 };
@@ -123,11 +124,11 @@ namespace HttpScript.Parsing
                 return true;
             }
 
-            if (TryMatchAndAdvance(out var curly, '{', '}'))
+            if (this.reader.TryMatchAndAdvance(out var curly, '{', '}'))
             {
                 token = new ParenToken()
                 {
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                     ParenType = ParenType.Curly,
                     ParenMode = curly == '{' ? ParenMode.Open : ParenMode.Close,
                 };
@@ -142,13 +143,13 @@ namespace HttpScript.Parsing
         private bool TryGetStringToken(out Token token, out ErrorToken? errorToken)
         {
             errorToken = null;
-            var prevPos = this.currentState;
+            this.reader.CreateSnapshot();
 
-            if (TryMatchAndAdvance(out var openQuote, '\'', '"'))
+            if (this.reader.TryMatchAndAdvance(out var openQuote, '\'', '"'))
             {
                 // we found an open quote, so we know we've a string
 
-                while (TryPeek(out var chr))
+                while (this.reader.TryPeek(out var chr))
                 {
                     var skipEndQuote = true;
 
@@ -158,7 +159,7 @@ namespace HttpScript.Parsing
                         {
                             // debatable where the error should be, it kind of makes
                             // sense to mark the whole string token
-                            Range = LexerState.GetRange(prevPos, this.currentState),
+                            Range = this.reader.GetRangeFromSnapshot(),
                             ErrorCode = ErrorType.MissingEndQuote,
                         };
 
@@ -175,18 +176,20 @@ namespace HttpScript.Parsing
                     if (chr == openQuote)
                     {
                         // end of string
+                        var prevOffset = this.reader.SnapshotState.CharOffset;
+                        var currOffset = this.reader.CurrentState.CharOffset;
                         var stringContent = this.buffer.Substring(
-                            prevPos.CharOffset + 1,
-                            this.currentState.CharOffset - prevPos.CharOffset - 1);
+                            prevOffset + 1,
+                            currOffset - prevOffset - 1);
 
                         if (skipEndQuote)
                         {
-                            Skip();
+                            this.reader.Skip();
                         }
 
                         token = new StringToken()
                         {
-                            Range = LexerState.GetRange(prevPos, this.currentState),
+                            Range = this.reader.GetRangeFromSnapshot(),
                             Value = stringContent,
                         };
 
@@ -195,7 +198,7 @@ namespace HttpScript.Parsing
                     else
                     {
                         // we don't care what this is, skip to next character
-                        Skip();
+                        this.reader.Skip();
                     }
                 }
 
@@ -205,38 +208,40 @@ namespace HttpScript.Parsing
                 {
                     // debatable where the error should be, it kind of makes
                     // sense to mark the whole string token
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                     ErrorCode = ErrorType.MissingEndQuote,
                 };
 
                 // however we can still just report the string token we have matched
                 // so far 
+                var unfinishedPrevOffset = this.reader.SnapshotState.CharOffset;
+                var unfinishedCurrOffset = this.reader.CurrentState.CharOffset;
                 var unfinishedStringContent = this.buffer.Substring(
-                    prevPos.CharOffset + 1,
-                    this.currentState.CharOffset - prevPos.CharOffset - 1);
+                    unfinishedPrevOffset + 1,
+                    unfinishedCurrOffset - unfinishedPrevOffset - 1);
 
                 token = new StringToken()
                 {
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                     Value = unfinishedStringContent,
                 };
 
                 return true;
             }
 
-            this.currentState = prevPos;
+            this.reader.RestoreSnapshot();
             token = Token.Empty;
             return false;
         }
 
         private bool TryGetCommentToken(out Token token, out ErrorToken? errorToken)
         {
-            var prevPos = this.currentState;
+            this.reader.CreateSnapshot();
             errorToken = null;
 
-            if (TryMatchSequenceAndAdvance("//"))
+            if (this.reader.TryMatchSequenceAndAdvance("//"))
             {
-                while (TryAdvance(out var chr) && chr != '\n')
+                while (this.reader.TryAdvance(out var chr) && chr != '\n')
                 {
                     // keep going till we hit eof or newline
                 }
@@ -244,25 +249,25 @@ namespace HttpScript.Parsing
                 token = new()
                 {
                     Type = TokenType.Comment,
-                    Range = LexerState.GetRange(prevPos, this.currentState),
+                    Range = this.reader.GetRangeFromSnapshot(),
                 };
 
                 return true;
             }
-            else if (TryMatchSequenceAndAdvance("/*"))
+            else if (this.reader.TryMatchSequenceAndAdvance("/*"))
             {
                 var foundEnd = false;
                 var depth = 0;
 
-                while (TryAdvance(out var chr))
+                while (this.reader.TryAdvance(out var chr))
                 {
-                    if (chr == '/' && TryMatchAndAdvance('*'))
+                    if (chr == '/' && this.reader.TryMatchAndAdvance('*'))
                     {
                         // nested comment
                         depth += 1;
                     }
 
-                    if (chr == '*' && TryMatchAndAdvance('/'))
+                    if (chr == '*' && this.reader.TryMatchAndAdvance('/'))
                     {
                         if (depth == 0)
                         {
@@ -281,7 +286,7 @@ namespace HttpScript.Parsing
                     token = new()
                     {
                         Type = TokenType.Comment,
-                        Range = LexerState.GetRange(prevPos, this.currentState),
+                        Range = this.reader.GetRangeFromSnapshot(),
                     };
                     return true;
                 }
@@ -293,20 +298,20 @@ namespace HttpScript.Parsing
                     token = new()
                     {
                         Type = TokenType.Comment,
-                        Range = LexerState.GetRange(prevPos, this.currentState),
+                        Range = this.reader.GetRangeFromSnapshot(),
                     };
 
                     errorToken = new()
                     {
                         ErrorCode = ErrorType.MissingEndComment,
-                        Range = LexerState.GetRange(prevPos, this.currentState),
+                        Range = this.reader.GetRangeFromSnapshot(),
                     };
 
                     return true;
                 }
             }
 
-            this.currentState = prevPos;
+            this.reader.RestoreSnapshot();
             token = Token.Empty;
             return false;
         }
