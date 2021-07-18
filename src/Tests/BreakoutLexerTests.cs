@@ -8,7 +8,7 @@ using static Tests.TokenAsserts;
 
 namespace Tests
 {
-    public class LexerBreakoutTests
+    public class BreakoutLexerTests
     {
         [Theory]
         [InlineData(WhiteSpace, " \t\n\r\n\r \n")]
@@ -16,10 +16,10 @@ namespace Tests
         [InlineData(Comment, "/* nested /*multiline\n*/\ncomment */")]
         [InlineData(Comment, "//single-line comment\n")]
         [InlineData(Symbol, "_symbol", "_symbol")]
-        [InlineData(Symbol, "$symbol", "$symbol")]
+        [InlineData(Symbol, "symbol12", "symbol12")]
         [InlineData(Symbol, "symbol", "symbol")]
         [InlineData(Symbol, "_SYMBOL", "_SYMBOL")]
-        [InlineData(Symbol, "$SYMBOL", "$SYMBOL")]
+        [InlineData(Symbol, "SYMBOL12", "SYMBOL12")]
         [InlineData(Symbol, "SYMBOL", "SYMBOL")]
         [InlineData(String, "'✨'", "✨")]
         [InlineData(String, "\"✨\"", "✨")]
@@ -102,7 +102,7 @@ namespace Tests
         {
             const string program = @"
 // assign the thing to the thing
-$myVal = symbol.method($something, test.var, 'some string');
+myVal = symbol.method(something, test.var, 'some string');
 ";
 
             var tokens = RunLexer(program);
@@ -111,7 +111,7 @@ $myVal = symbol.method($something, test.var, 'some string');
             {
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Comment, t),
-                (t) => AssertToken(Symbol, "$myVal", t),
+                (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Operator, OperatorType.Assignment, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -119,7 +119,7 @@ $myVal = symbol.method($something, test.var, 'some string');
                 (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
                 (t) => AssertToken(Symbol, "method", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
-                (t) => AssertToken(Symbol, "$something", t),
+                (t) => AssertToken(Symbol, "something", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),
@@ -141,9 +141,9 @@ $myVal = symbol.method($something, test.var, 'some string');
         {
             const string program = @"
 // assign the thing to the thing
-$something = ""unfinished string
-+
-$myVal = symbol.method($something, test.var, 'some string');
+something = ""unfinished string
+✨
+myVal = symbol.method(something, test.var, 'some string');
 ";
 
             var tokens = RunLexer(program);
@@ -151,7 +151,7 @@ $myVal = symbol.method($something, test.var, 'some string');
             Assert.Collection(tokens,
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Comment, t),
-                (t) => AssertToken(Symbol, "$something", t),
+                (t) => AssertToken(Symbol, "something", t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Operator, OperatorType.Assignment, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -160,7 +160,7 @@ $myVal = symbol.method($something, test.var, 'some string');
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Error, ErrorType.UnknownToken, t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Symbol, "$myVal", t),
+                (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Operator, OperatorType.Assignment, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -168,7 +168,7 @@ $myVal = symbol.method($something, test.var, 'some string');
                 (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
                 (t) => AssertToken(Symbol, "method", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
-                (t) => AssertToken(Symbol, "$something", t),
+                (t) => AssertToken(Symbol, "something", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),

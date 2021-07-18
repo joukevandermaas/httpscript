@@ -15,7 +15,7 @@ namespace Tests
         {
             const string program = @"
 // assign the thing to the thing
-$myVal = symbol.method($something, test.var, 'some string');
+myVal = symbol.method(something, test.var, 'some string');
 ";
 
             var lexer = new Lexer(program) { ParsingMode = ParsingMode.Breakout };
@@ -43,7 +43,7 @@ $myVal = symbol.method($something, test.var, 'some string');
             {
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Comment, t),
-                (t) => AssertToken(Symbol, "$myVal", t),
+                (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Operator, OperatorType.Assignment, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -51,7 +51,7 @@ $myVal = symbol.method($something, test.var, 'some string');
                 (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
                 (t) => AssertToken(Symbol, "method", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
-                (t) => AssertToken(Symbol, "$something", t),
+                (t) => AssertToken(Symbol, "something", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),

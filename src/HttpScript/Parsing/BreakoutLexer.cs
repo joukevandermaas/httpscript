@@ -34,17 +34,16 @@ namespace HttpScript.Parsing
             this.reader.CreateSnapshot();
 
             if (this.reader.TryPeek(out var firstChr) && (
-                firstChr == '$' ||
                 firstChr == '_' ||
                 char.IsLetter(firstChr)))
             {
-                // valid first characters include dollar,
-                // while subsequent ones cannot be
+                // valid first characters do not include digits,
+                // while subsequent ones can be
                 this.reader.Skip();
 
                 while (this.reader.TryPeek(out var chr))
                 {
-                    if (char.IsLetter(chr) || chr == '_')
+                    if (char.IsLetterOrDigit(chr) || chr == '_')
                     {
                         this.reader.Skip();
                     }
