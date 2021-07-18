@@ -63,6 +63,8 @@ namespace Tests
         [InlineData(String, ErrorType.MissingEndQuote, "\'✨", "✨")]
         [InlineData(String, ErrorType.MissingEndQuote, "\"✨\n", "✨")]
         [InlineData(String, ErrorType.MissingEndQuote, "\'✨\n", "✨")]
+        [InlineData(WhiteSpace, ErrorType.UnknownToken, "✨ ")]
+        [InlineData(Unknown, ErrorType.UnknownToken, "✨")]
         public void RecoversFromPredictableErrors(
             TokenType tokenType,
             ErrorType errorType,
@@ -74,8 +76,12 @@ namespace Tests
             var asserts = new List<System.Action<Token>>()
             {
                 (t) => Assert.Equal(errorType, (t as ErrorToken).ErrorCode),
-                (t) => Assert.Equal(tokenType, t.Type),
             };
+
+            if (tokenType != Unknown)
+            {
+                asserts.Add((t) => Assert.Equal(tokenType, t.Type));
+            }
 
             if (program.EndsWith('\n'))
             {
@@ -84,9 +90,11 @@ namespace Tests
 
             Assert.Collection(tokens, asserts.ToArray());
 
-            var token = tokens.Skip(1).First();
-
-            AssertContent(content, token);
+            if (tokens.Count > 1)
+            {
+                var token = tokens.Skip(1).First();
+                AssertContent(content, token);
+            }
         }
 
         [Fact]

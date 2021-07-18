@@ -2,7 +2,9 @@
 {
     public enum ParsingMode
     {
-        Http,
+        HttpRequestLine,
+        HttpHeader,
+        HttpBody,
         Breakout,
     }
 }

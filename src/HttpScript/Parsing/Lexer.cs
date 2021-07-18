@@ -4,10 +4,19 @@ using System.Diagnostics;
 
 namespace HttpScript.Parsing
 {
-    public partial class Lexer
+    public class Lexer
     {
+        // the string representing the program we are parsing
         private readonly string buffer;
+
+        // when we match tokens we add them to this queue, then
+        // process the queue before parsing more. this allows the
+        // consumer to peek tokens without overhead.
         private readonly Queue<Token> lookAhead = new();
+
+        // maps parsing mode to the sublang lexer we need to use
+        // to generate tokens
+        private readonly Dictionary<ParsingMode, ISublangLexer> sublangLexers;
 
         private StringBufferReader reader;
         private StringBufferReaderState beforeLookAheadState;
@@ -17,6 +26,18 @@ namespace HttpScript.Parsing
         {
             this.buffer = content;
             this.reader = new(buffer);
+
+            // depending on where we are in the file, we are parsing completely
+            // different languages (http vs breakout for example). this is
+            // implemented through a "mode" switch which is controlled by the
+            // parser.
+            // based on the mode we switch to a different lexer, which reduces
+            // the likelyhood that the languages accidentally bleed into each
+            // other.
+            this.sublangLexers = new()
+            {
+                [ParsingMode.Breakout] = new BreakoutLexer(this.reader)
+            };
         }
 
         public ParsingMode ParsingMode
@@ -70,7 +91,7 @@ namespace HttpScript.Parsing
             // we don't have to do double parsing when someone peeks and then
             // consumes.
             // but if someone changes the parsing mode, those tokens are bad
-            // and we should rever to the previous state.
+            // and we should revert to the previous state.
             this.beforeLookAheadState = this.reader.CurrentState;
 
             // convention is that if hasValidToken == false, then no tokens
@@ -119,9 +140,13 @@ namespace HttpScript.Parsing
 
         private bool TryGetToken(out Token token, out ErrorToken? errorToken)
         {
-            var result = this.ParsingMode == ParsingMode.Breakout
-                ? TryGetBreakoutToken(out token, out errorToken)
-                : TryGetHttpToken(out token, out errorToken);
+            if (TryGetWhiteSpaceToken(out token))
+            {
+                errorToken = null;
+                return true;
+            }
+
+            var result = this.sublangLexers[this.ParsingMode].TryGetToken(out token, out errorToken);
 
             return result;
         }
@@ -131,19 +156,16 @@ namespace HttpScript.Parsing
             var errorStartPos = this.reader.CurrentState;
             var errorEndPos = this.reader.CurrentState;
 
-            while (true)
+            bool foundValidToken = false;
+
+            while (!foundValidToken)
             {
                 // skip the current character, then try to match a token again
                 if (reader.TrySkip())
                 {
                     errorEndPos = this.reader.CurrentState;
 
-                    Token token;
-                    ErrorToken? errorToken;
-
-                    var result = this.ParsingMode == ParsingMode.Breakout
-                        ? TryGetBreakoutToken(out token, out errorToken)
-                        : TryGetHttpToken(out token, out errorToken);
+                    var result = TryGetToken(out var token, out var errorToken);
 
                     if (result)
                     {
@@ -165,7 +187,7 @@ namespace HttpScript.Parsing
                         // finally we should enqueue the good token we found
                         lookAhead.Enqueue(token);
 
-                        return;
+                        foundValidToken = true;
                     }
                 }
                 else
@@ -177,7 +199,9 @@ namespace HttpScript.Parsing
                         ErrorCode = ErrorType.UnknownToken,
                     });
 
-                    return;
+                    // we didn't find a token but we can't find any
+                    // because we're at the end of the file
+                    foundValidToken = true;
                 }
             }
 

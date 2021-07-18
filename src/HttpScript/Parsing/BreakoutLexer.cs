@@ -3,16 +3,22 @@ using System;
 
 namespace HttpScript.Parsing
 {
-    public partial class Lexer
+    internal class BreakoutLexer : ISublangLexer
     {
-        private bool TryGetBreakoutToken(out Token token, out ErrorToken? errorToken)
+        private readonly StringBufferReader reader;
+
+        public BreakoutLexer(StringBufferReader reader)
+        {
+            this.reader = reader;
+        }
+
+        public bool TryGetToken(out Token token, out ErrorToken? errorToken)
         {
             // most token types won't have lexer errors
             errorToken = null;
 
             if (TryGetParenToken(out token)) { return true; }
             if (TryGetOperatorToken(out token)) { return true; }
-            if (TryGetWhiteSpaceToken(out token)) { return true; }
             if (TryGetCommentToken(out token, out errorToken)) { return true; }
             if (TryGetStringToken(out token, out errorToken)) { return true; }
             if (TryGetSymbolToken(out token)) { return true; }
@@ -50,7 +56,7 @@ namespace HttpScript.Parsing
 
                 var prevCharOffset = this.reader.SnapshotState.CharOffset;
                 var currCharOffset = this.reader.CurrentState.CharOffset;
-                var name = this.buffer.Substring(
+                var name = this.reader.Buffer.Substring(
                     prevCharOffset,
                     currCharOffset - prevCharOffset);
 
@@ -178,7 +184,7 @@ namespace HttpScript.Parsing
                         // end of string
                         var prevOffset = this.reader.SnapshotState.CharOffset;
                         var currOffset = this.reader.CurrentState.CharOffset;
-                        var stringContent = this.buffer.Substring(
+                        var stringContent = this.reader.Buffer.Substring(
                             prevOffset + 1,
                             currOffset - prevOffset - 1);
 
@@ -216,7 +222,7 @@ namespace HttpScript.Parsing
                 // so far 
                 var unfinishedPrevOffset = this.reader.SnapshotState.CharOffset;
                 var unfinishedCurrOffset = this.reader.CurrentState.CharOffset;
-                var unfinishedStringContent = this.buffer.Substring(
+                var unfinishedStringContent = this.reader.Buffer.Substring(
                     unfinishedPrevOffset + 1,
                     unfinishedCurrOffset - unfinishedPrevOffset - 1);
 
