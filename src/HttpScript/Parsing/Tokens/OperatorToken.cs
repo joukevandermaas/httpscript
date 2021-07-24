@@ -10,7 +10,7 @@
 
         public override string ToString()
         {
-            return base.ToString() + $" ({OperatorType})";
+            return base.ToString() + $" ({this.OperatorType})";
         }
     }
 }

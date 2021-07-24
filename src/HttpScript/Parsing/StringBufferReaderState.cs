@@ -12,12 +12,12 @@ namespace HttpScript.Parsing
 
         public override string ToString()
         {
-            return $"L{LineNumber}C{CharOffset - LineStartOffset + 1}";
+            return $"L{this.LineNumber}C{this.CharOffset - this.LineStartOffset + 1}";
         }
 
         public bool Equals(StringBufferReaderState other)
         {
-            return CompareTo(other) == 0;
+            return this.CompareTo(other) == 0;
         }
 
         public int CompareTo(StringBufferReaderState other)
@@ -26,17 +26,17 @@ namespace HttpScript.Parsing
             // the other values should be the same too if this matches.
             // that said if you compare the states for two different strings
             // that won't hold (but we don't care about that)
-            return CharOffset - other.CharOffset;
+            return this.CharOffset - other.CharOffset;
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj)
         {
-            return obj is StringBufferReaderState state && Equals(state);
+            return obj is StringBufferReaderState state && this.Equals(state);
         }
 
         public override int GetHashCode()
         {
-            return CharOffset.GetHashCode();
+            return this.CharOffset.GetHashCode();
         }
 
         public static Range GetRange(StringBufferReaderState start, StringBufferReaderState end)

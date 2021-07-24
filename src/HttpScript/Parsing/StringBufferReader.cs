@@ -19,7 +19,7 @@ namespace HttpScript.Parsing
 
         public StringBufferReader(ReadOnlyMemory<char> buffer)
         {
-            Buffer = buffer;
+            this.Buffer = buffer;
         }
 
         public void CreateSnapshot()
@@ -40,7 +40,7 @@ namespace HttpScript.Parsing
 
         public Range GetRangeFromSnapshot()
         {
-            return StringBufferReaderState.GetRange(SnapshotState, CurrentState);
+            return StringBufferReaderState.GetRange(this.SnapshotState, this.CurrentState);
         }
 
         public bool TryMatchSequenceAndAdvance(string match)
@@ -48,7 +48,7 @@ namespace HttpScript.Parsing
             var offset = 0;
             var prevPos = this.CurrentState;
 
-            while (offset < match.Length && TryMatchAndAdvance(match[offset]))
+            while (offset < match.Length && this.TryMatchAndAdvance(match[offset]))
             {
                 offset += 1;
             }
@@ -64,7 +64,7 @@ namespace HttpScript.Parsing
 
         public bool TryMatchAndAdvance(out char matchedChar, params char[] matches)
         {
-            if (TryPeek(out var chr))
+            if (this.TryPeek(out var chr))
             {
                 var matchFound = false;
                 for (var i = 0; i < matches.Length; i++)
@@ -78,7 +78,7 @@ namespace HttpScript.Parsing
 
                 if (matchFound)
                 {
-                    matchedChar = Advance();
+                    matchedChar = this.Advance();
                     return true;
                 }
             }
@@ -89,41 +89,41 @@ namespace HttpScript.Parsing
 
         public bool TryMatchAndAdvance(char match)
         {
-            if (TryPeek(out var chr) && chr == match)
+            if (this.TryPeek(out var chr) && chr == match)
             {
-                Skip();
+                this.Skip();
                 return true;
             }
 
             return false;
         }
 
-        public bool TrySkip() => TryAdvance(out _);
+        public bool TrySkip() => this.TryAdvance(out _);
 
         public bool TryAdvance(out char character)
         {
-            if (IsAtEndOfBuffer())
+            if (this.IsAtEndOfBuffer())
             {
                 character = default;
                 return false;
             }
 
-            character = Advance();
+            character = this.Advance();
             return true;
         }
 
-        public bool TryPeek(out char character) => TryPeek(out character, out _);
+        public bool TryPeek(out char character) => this.TryPeek(out character, out _);
 
         private bool TryPeek(out char character, out int consumed)
         {
-            if (IsAtEndOfBuffer())
+            if (this.IsAtEndOfBuffer())
             {
                 character = default;
                 consumed = 0;
                 return false;
             }
 
-            character = Peek(out consumed);
+            character = this.Peek(out consumed);
             return true;
         }
 
@@ -134,11 +134,11 @@ namespace HttpScript.Parsing
             return pos >= this.Buffer.Length;
         }
 
-        public void Skip() => Advance();
+        public void Skip() => this.Advance();
 
         public char Advance()
         {
-            var character = Peek(out var consumed);
+            var character = this.Peek(out var consumed);
 
             var newCharOffset = this.CurrentState.CharOffset + consumed;
             var newLineStartOffset = this.CurrentState.LineStartOffset;
@@ -165,7 +165,7 @@ namespace HttpScript.Parsing
             return character;
         }
 
-        public char Peek() => Peek(out _);
+        public char Peek() => this.Peek(out _);
 
         private char Peek(out int consumed)
         {
@@ -177,7 +177,7 @@ namespace HttpScript.Parsing
             // normalize newlines to \n
             var consumedCharacters = 1;
 
-            if (character == '\r' && (pos + 1 < Buffer.Length))
+            if (character == '\r' && (pos + 1 < this.Buffer.Length))
             {
                 if (this.Buffer.Span[pos + 1] == '\n')
                 {

@@ -10,11 +10,11 @@ namespace HttpScript.Parsing.Tokens
         public Range Range { get; init; }
 
         public bool Equals(Token? other) =>
-            Type == other?.Type
-            && Range == other?.Range;
+            this.Type == other?.Type
+            && this.Range == other?.Range;
 
         public override bool Equals(object? obj) =>
-            obj is Token token && Equals(token);
+            obj is Token token && this.Equals(token);
 
         public static bool operator ==(Token? left, Token? right) => 
             // if both are null, they are equal
@@ -23,7 +23,7 @@ namespace HttpScript.Parsing.Tokens
             // otherwise 'equals' impl handles nullability
             || (left?.Equals(right) ?? false);
         public static bool operator !=(Token? left, Token? right) => !(left == right);
-        public override int GetHashCode() => HashCode.Combine(Type, Range);
-        public override string ToString() => $"{Type} <{Range}>";
+        public override int GetHashCode() => HashCode.Combine(this.Type, this.Range);
+        public override string ToString() => $"{this.Type} <{this.Range}>";
     }
 }

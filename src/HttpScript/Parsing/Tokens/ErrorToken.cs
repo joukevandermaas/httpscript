@@ -14,7 +14,7 @@
 
         public override string ToString()
         {
-            return base.ToString() + $" ({ErrorCode})";
+            return base.ToString() + $" ({this.ErrorCode})";
         }
     }
 }

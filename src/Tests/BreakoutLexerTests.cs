@@ -54,7 +54,7 @@ namespace Tests
         [InlineData("}", ParenType.Curly, ParenMode.Close)]
         public void RecognizesSingleParen(string program, ParenType parenType, ParenMode parenMode)
         {
-            RecognizesSingleToken(Paren, program, (parenType, parenMode));
+            this.RecognizesSingleToken(Paren, program, (parenType, parenMode));
         }
 
         [Theory]

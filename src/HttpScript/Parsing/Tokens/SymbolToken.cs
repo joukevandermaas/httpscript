@@ -11,7 +11,7 @@
 
         public override string ToString()
         {
-            return base.ToString() + $" ({Name})";
+            return base.ToString() + $" ({this.Name})";
         }
     }
 }

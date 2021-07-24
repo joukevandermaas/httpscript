@@ -1,4 +1,4 @@
-using HttpScript.Parsing.Tokens;
+﻿using HttpScript.Parsing.Tokens;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -13,7 +13,7 @@ namespace HttpScript.Parsing
         // when we match tokens we add them to this queue, then
         // process the queue before parsing more. this allows the
         // consumer to peek tokens without overhead.
-        private readonly Queue<Token> lookAhead = new();
+        private readonly BufferedQueue<Token> tokenQueue = new();
 
         // maps parsing mode to the sublang lexer we need to use
         // to generate tokens
@@ -26,7 +26,7 @@ namespace HttpScript.Parsing
         public Lexer(ReadOnlyMemory<char> content)
         {
             this.buffer = content;
-            this.reader = new(buffer);
+            this.reader = new(this.buffer);
 
             // depending on where we are in the file, we are parsing completely
             // different languages (http vs breakout for example). this is
@@ -53,40 +53,108 @@ namespace HttpScript.Parsing
 
                 // we're switching modes, we should clear the
                 // lookahead queue because it is no longer valid
-                this.lookAhead.Clear();
+                // TODO: this is probably wrong; we may want to backtrack
+                // after switching modes which does not work with the current
+                // implmentation of BufferedQueue.Clear
+                this.tokenQueue.Clear();
                 this.reader.CurrentState = this.beforeLookAheadState;
             }
         }
 
+        public bool IsComplete => this.reader.IsAtEndOfBuffer();
+
+        public bool TryPeekTokenOfType(TokenType tokenType, out Token token)
+        {
+            var success = this.TryPeekToken(out var maybeToken);
+
+            if (success && maybeToken.Type == tokenType)
+            {
+                token = maybeToken;
+                return true;
+            }
+
+            token = Token.Empty;
+            return false;
+        }
+
+        public bool TryPeekTokenOfType<T>(out T token) where T : Token
+        {
+            var success = this.TryPeekToken(out var untypedToken);
+
+            if (!success)
+            {
+                token = default!;
+                return false;
+            }
+
+            var typedToken = untypedToken as T;
+
+            if (typedToken == null)
+            {
+                token = default!;
+                return false;
+            }
+
+            token = typedToken;
+            return true;
+        }
+
         public bool TryPeekToken(out Token token)
         {
-            var success = lookAhead.TryPeek(out var maybeToken);
+            var success = this.tokenQueue.TryPeek(out var maybeToken);
 
-            if (!success && TryLookAheadAndAdvance())
+            if (!success && this.TryLookAheadAndAdvance())
             {
-                success = lookAhead.TryPeek(out maybeToken);
+                success = this.tokenQueue.TryPeek(out maybeToken);
             }
 
             token = maybeToken ?? Token.Empty;
+            return success;
+        }
+
+        public bool TryConsumeTokenOfType(TokenType tokenType, out Token token)
+        {
+            var success = this.TryPeekTokenOfType(tokenType, out token);
+
+            if (success)
+            {
+                // dequeue before returning, this will succeed
+                // since the peek succeeded
+                this.tokenQueue.TryDequeue(out _);
+            }
+
+            return success;
+        }
+
+        public bool TryConsumeTokenOfType<T>(out T token) where T : Token
+        {
+            var success = this.TryPeekTokenOfType(out token);
+
+            if (success)
+            {
+                // dequeue before returning, this will succeed
+                // since the peek succeeded
+                this.tokenQueue.TryDequeue(out _);
+            }
+
             return success;
         }
 
         public bool TryConsumeToken(out Token token)
         {
-            var success = lookAhead.TryDequeue(out var maybeToken);
+            var success = this.TryPeekToken(out token);
 
-            if (!success && TryLookAheadAndAdvance())
+            if (success)
             {
-                success = lookAhead.TryDequeue(out maybeToken);
+                this.tokenQueue.TryDequeue(out _);
             }
 
-            token = maybeToken ?? Token.Empty;
             return success;
         }
 
         private bool TryLookAheadAndAdvance()
         {
-            Debug.Assert(this.lookAhead.Count == 0);
+            Debug.Assert(this.tokenQueue.Count == 0);
 
             // we're going to enqueue some tokens into the lookahead queue so
             // we don't have to do double parsing when someone peeks and then
@@ -100,16 +168,16 @@ namespace HttpScript.Parsing
             // produced, that means we know what the problem is and we were
             // able to recover. if we cannot recover in a specific way, we
             // try to do so in a generic way below.
-            var hasValidToken = TryGetToken(out var parsedToken, out var errorToken);
+            var hasValidToken = this.TryGetToken(out var parsedToken, out var errorToken);
 
             if (hasValidToken)
             {
                 if (errorToken != null)
                 {
-                    lookAhead.Enqueue(errorToken);
+                    this.tokenQueue.Enqueue(errorToken);
                 }
 
-                lookAhead.Enqueue(parsedToken);
+                this.tokenQueue.Enqueue(parsedToken);
             }
 
             if (!hasValidToken && !this.reader.IsAtEndOfBuffer())
@@ -117,13 +185,13 @@ namespace HttpScript.Parsing
                 // we'll skip characters until we can match a valid token
                 // again (or until we hit the end of the file) and report
                 // the whole range of invalid stuff as a single error.
-                AdvanceToValidToken();
+                this.AdvanceToValidToken();
 
                 // we've recovered
                 hasValidToken = true;
             }
 
-            if (hasValidToken && lookAhead.Count != 0)
+            if (hasValidToken && this.tokenQueue.Count != 0)
             {
                 return true;
             }
@@ -133,7 +201,7 @@ namespace HttpScript.Parsing
 
         public IEnumerable<Token> GetTokens()
         {
-            while (TryConsumeToken(out var token))
+            while (this.TryConsumeToken(out var token))
             {
                 yield return token;
             }
@@ -141,7 +209,7 @@ namespace HttpScript.Parsing
 
         private bool TryGetToken(out Token token, out ErrorToken? errorToken)
         {
-            if (TryGetWhiteSpaceToken(out token))
+            if (this.TryGetWhiteSpaceToken(out token))
             {
                 errorToken = null;
                 return true;
@@ -162,17 +230,17 @@ namespace HttpScript.Parsing
             while (!foundValidToken)
             {
                 // skip the current character, then try to match a token again
-                if (reader.TrySkip())
+                if (this.reader.TrySkip())
                 {
                     errorEndPos = this.reader.CurrentState;
 
-                    var result = TryGetToken(out var token, out var errorToken);
+                    var result = this.TryGetToken(out var token, out var errorToken);
 
                     if (result)
                     {
                         // ok we found a good token now, or there's nothing more to
                         // be found, we should enqueue our error
-                        lookAhead.Enqueue(new ErrorToken()
+                        this.tokenQueue.Enqueue(new ErrorToken()
                         {
                             Range = StringBufferReaderState.GetRange(errorStartPos, errorEndPos),
                             ErrorCode = ErrorType.UnknownToken,
@@ -182,11 +250,11 @@ namespace HttpScript.Parsing
                         // first enqueue that error now
                         if (errorToken != null)
                         {
-                            lookAhead.Enqueue(errorToken);
+                            this.tokenQueue.Enqueue(errorToken);
                         }
 
                         // finally we should enqueue the good token we found
-                        lookAhead.Enqueue(token);
+                        this.tokenQueue.Enqueue(token);
 
                         foundValidToken = true;
                     }
@@ -194,7 +262,7 @@ namespace HttpScript.Parsing
                 else
                 {
                     // we reached the end of the buffer
-                    lookAhead.Enqueue(new ErrorToken()
+                    this.tokenQueue.Enqueue(new ErrorToken()
                     {
                         Range = StringBufferReaderState.GetRange(errorStartPos, errorEndPos),
                         ErrorCode = ErrorType.UnknownToken,
@@ -221,7 +289,7 @@ namespace HttpScript.Parsing
 
             if (anyConsumed)
             {
-                var range = reader.GetRangeFromSnapshot();
+                var range = this.reader.GetRangeFromSnapshot();
 
                 token = new()
                 {
@@ -237,5 +305,19 @@ namespace HttpScript.Parsing
             return false;
         }
 
+        public void PushRestorePoint()
+        {
+            this.tokenQueue.PushRestorePoint();
+        }
+
+        public void PopRestorePoint()
+        {
+            this.tokenQueue.PopRestorePoint();
+        }
+
+        public void DiscardRestorePoint()
+        {
+            this.tokenQueue.DiscardRestorePoint();
+        }
     }
 }

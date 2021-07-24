@@ -13,15 +13,15 @@ namespace HttpScript.Parsing
         public int StartCharacter { get; init; }
         public int EndCharacter { get; init; }
 
-        public bool Equals(Range other) => StartOffset == other.StartOffset && EndOffset == other.EndOffset;
-        public override bool Equals(object? obj) => obj is Range && Equals((Range)obj);
+        public bool Equals(Range other) => this.StartOffset == other.StartOffset && this.EndOffset == other.EndOffset;
+        public override bool Equals(object? obj) => obj is Range range && this.Equals(range);
         public static bool operator ==(Range left, Range right) => left.Equals(right);
         public static bool operator !=(Range left, Range right) => !(left == right);
-        public override int GetHashCode() => HashCode.Combine(StartOffset, EndOffset);
+        public override int GetHashCode() => HashCode.Combine(this.StartOffset, this.EndOffset);
 
         public override string ToString()
         {
-            return $"L{StartLine}C{StartCharacter}-L{EndLine}C{EndCharacter}";
+            return $"L{this.StartLine}C{this.StartCharacter}-L{this.EndLine}C{this.EndCharacter}";
         }
     }
 }

@@ -17,11 +17,11 @@ namespace HttpScript.Parsing
             // most token types won't have lexer errors
             errorToken = null;
 
-            if (TryGetParenToken(out token)) { return true; }
-            if (TryGetOperatorToken(out token)) { return true; }
-            if (TryGetCommentToken(out token, out errorToken)) { return true; }
-            if (TryGetStringToken(out token, out errorToken)) { return true; }
-            if (TryGetSymbolToken(out token)) { return true; }
+            if (this.TryGetParenToken(out token)) { return true; }
+            if (this.TryGetOperatorToken(out token)) { return true; }
+            if (this.TryGetCommentToken(out token, out errorToken)) { return true; }
+            if (this.TryGetStringToken(out token, out errorToken)) { return true; }
+            if (this.TryGetSymbolToken(out token)) { return true; }
 
             // we don't know wtf is going on, we should let the main
             // loop deal with this tho, we don't have enough info to

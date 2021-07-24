@@ -12,7 +12,7 @@
 
         public override string ToString()
         {
-            return base.ToString() + $" ({ParenMode}{ParenType})";
+            return base.ToString() + $" ({this.ParenMode}{this.ParenType})";
         }
     }
 }
