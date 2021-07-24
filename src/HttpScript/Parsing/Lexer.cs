@@ -1,4 +1,5 @@
-﻿using HttpScript.Parsing.Tokens;
+using HttpScript.Parsing.Tokens;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -7,7 +8,7 @@ namespace HttpScript.Parsing
     public class Lexer
     {
         // the string representing the program we are parsing
-        private readonly string buffer;
+        private readonly ReadOnlyMemory<char> buffer;
 
         // when we match tokens we add them to this queue, then
         // process the queue before parsing more. this allows the
@@ -22,7 +23,7 @@ namespace HttpScript.Parsing
         private StringBufferReaderState beforeLookAheadState;
         private ParsingMode parsingMode;
 
-        public Lexer(string content)
+        public Lexer(ReadOnlyMemory<char> content)
         {
             this.buffer = content;
             this.reader = new(buffer);

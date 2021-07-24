@@ -1,9 +1,11 @@
-﻿namespace HttpScript.Parsing
+﻿using System;
+
+namespace HttpScript.Parsing
 {
     internal class StringBufferReader
     {
-        public string Buffer { get; }
-        
+        public ReadOnlyMemory<char> Buffer { get; }
+
         // normally this class is responsible for setting these but
         // sometimes it's cleaner to just do it from the outside
         public StringBufferReaderState CurrentState { get; set; } = new()
@@ -15,7 +17,7 @@
         };
         public StringBufferReaderState SnapshotState { get; set; }
 
-        public StringBufferReader(string buffer)
+        public StringBufferReader(ReadOnlyMemory<char> buffer)
         {
             Buffer = buffer;
         }
@@ -169,14 +171,15 @@
         {
             // this can fail if pos is out of range
             var pos = this.CurrentState.CharOffset;
-            var character = this.Buffer[pos];
+
+            var character = this.Buffer.Span[pos];
 
             // normalize newlines to \n
             var consumedCharacters = 1;
 
             if (character == '\r' && (pos + 1 < Buffer.Length))
             {
-                if (this.Buffer[pos + 1] == '\n')
+                if (this.Buffer.Span[pos + 1] == '\n')
                 {
                     consumedCharacters = 2;
                     character = '\n';

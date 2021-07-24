@@ -1,5 +1,6 @@
 using HttpScript.Parsing;
 using HttpScript.Parsing.Tokens;
+using System;
 using System.Collections.Generic;
 using Xunit;
 using static HttpScript.Parsing.Tokens.TokenType;
@@ -13,10 +14,10 @@ namespace Tests
         [Fact]
         public void PeekReturnsSameAsConsume()
         {
-            const string program = @"
+            var program = @"
 // assign the thing to the thing
 myVal = symbol.method(something, test.var, 'some string');
-";
+".AsMemory();
 
             var lexer = new Lexer(program) { ParsingMode = ParsingMode.Breakout };
             var tokens = new List<Token>();
@@ -59,7 +60,7 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Symbol, "var", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(String, "some string", t),
+                (t) => AssertToken(StringContent, "some string", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
                 (t) => AssertToken(Operator, OperatorType.EndStatement, t),
                 (t) => AssertToken(WhiteSpace, t),

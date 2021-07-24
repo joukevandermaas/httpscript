@@ -55,13 +55,13 @@ namespace HttpScript.Parsing
 
                 var prevCharOffset = this.reader.SnapshotState.CharOffset;
                 var currCharOffset = this.reader.CurrentState.CharOffset;
-                var name = this.reader.Buffer.Substring(
+                var name = this.reader.Buffer.Slice(
                     prevCharOffset,
                     currCharOffset - prevCharOffset);
 
                 token = new SymbolToken()
                 {
-                    Name = name,
+                    Name = new string(name.Span),
                     Range = this.reader.GetRangeFromSnapshot(),
                 };
 
@@ -183,7 +183,7 @@ namespace HttpScript.Parsing
                         // end of string
                         var prevOffset = this.reader.SnapshotState.CharOffset;
                         var currOffset = this.reader.CurrentState.CharOffset;
-                        var stringContent = this.reader.Buffer.Substring(
+                        var stringContent = this.reader.Buffer.Slice(
                             prevOffset + 1,
                             currOffset - prevOffset - 1);
 
@@ -195,7 +195,7 @@ namespace HttpScript.Parsing
                         token = new StringToken()
                         {
                             Range = this.reader.GetRangeFromSnapshot(),
-                            Value = stringContent,
+                            Value = new string(stringContent.Span),
                         };
 
                         return true;
@@ -221,14 +221,14 @@ namespace HttpScript.Parsing
                 // so far 
                 var unfinishedPrevOffset = this.reader.SnapshotState.CharOffset;
                 var unfinishedCurrOffset = this.reader.CurrentState.CharOffset;
-                var unfinishedStringContent = this.reader.Buffer.Substring(
+                var unfinishedStringContent = this.reader.Buffer.Slice(
                     unfinishedPrevOffset + 1,
                     unfinishedCurrOffset - unfinishedPrevOffset - 1);
 
                 token = new StringToken()
                 {
                     Range = this.reader.GetRangeFromSnapshot(),
-                    Value = unfinishedStringContent,
+                    Value = new string(unfinishedStringContent.Span),
                 };
 
                 return true;

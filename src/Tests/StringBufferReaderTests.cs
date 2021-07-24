@@ -1,11 +1,12 @@
 ﻿using HttpScript.Parsing;
+using System;
 using Xunit;
 
 namespace Tests
 {
     public class StringBufferReaderTests
     {
-        const string program = "abcdefghijklmnopqrstuvwxyz";
+        private static readonly ReadOnlyMemory<char> program = "abcdefghijklmnopqrstuvwxyz".AsMemory();
 
         [Fact]
         public void CreateSnapshotWorks()
@@ -161,7 +162,7 @@ namespace Tests
         [Fact]
         public void TryAdvanceDoesNotAdvanceIfAtEnd()
         {
-            var reader = new StringBufferReader("");
+            var reader = new StringBufferReader("".AsMemory());
 
             var result = reader.TryAdvance(out var _);
 
@@ -184,7 +185,7 @@ namespace Tests
         [Fact]
         public void PeekFoldsNewlineSequence()
         {
-            var reader = new StringBufferReader("\r\n");
+            var reader = new StringBufferReader("\r\n".AsMemory());
 
             var result = reader.TryPeek(out var character);
 
@@ -196,7 +197,7 @@ namespace Tests
         [Fact]
         public void AdvanceFoldsNewlineSequence()
         {
-            var reader = new StringBufferReader("\r\n");
+            var reader = new StringBufferReader("\r\n".AsMemory());
 
             var result = reader.TryAdvance(out var character);
 
@@ -208,7 +209,7 @@ namespace Tests
         [Fact]
         public void GetRangeFromSnapshotWorksWhenEndsOnNewline()
         {
-            var reader = new StringBufferReader("abcd\r\nefgh");
+            var reader = new StringBufferReader("abcd\r\nefgh".AsMemory());
 
             reader.CreateSnapshot();
             reader.Advance(); // a

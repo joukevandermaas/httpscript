@@ -1,4 +1,5 @@
 ﻿using HttpScript.Parsing;
+using System;
 using System.Linq;
 
 namespace HttpScript
@@ -7,7 +8,7 @@ namespace HttpScript
     {
         static void Main(string[] args)
         {
-            var lexer = new Lexer("$survey");
+            var lexer = new Lexer("$survey".AsMemory());
             lexer.ParsingMode = ParsingMode.Breakout;
 
             var tokens = lexer.GetTokens().ToList();

@@ -6,7 +6,7 @@
         Error = 1,
 
         WhiteSpace = 2,
-        String = 3,
+        StringContent = 3, // 'String' conflicts with System.String
         Paren = 4,
         Operator = 5,
         Symbol = 6,

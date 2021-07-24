@@ -4,7 +4,7 @@
     {
         public StringToken()
         {
-            base.Type = TokenType.String;
+            base.Type = TokenType.StringContent;
         }
 
         public string Value { get; init; } = string.Empty;

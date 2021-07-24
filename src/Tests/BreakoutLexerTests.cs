@@ -1,5 +1,6 @@
 using HttpScript.Parsing;
 using HttpScript.Parsing.Tokens;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
@@ -21,8 +22,8 @@ namespace Tests
         [InlineData(Symbol, "_SYMBOL", "_SYMBOL")]
         [InlineData(Symbol, "SYMBOL12", "SYMBOL12")]
         [InlineData(Symbol, "SYMBOL", "SYMBOL")]
-        [InlineData(String, "'✨'", "✨")]
-        [InlineData(String, "\"✨\"", "✨")]
+        [InlineData(StringContent, "'✨'", "✨")]
+        [InlineData(StringContent, "\"✨\"", "✨")]
         [InlineData(Operator, "=", OperatorType.Assignment)]
         [InlineData(Operator, ".", OperatorType.MemberAccess)]
         [InlineData(Operator, ",", OperatorType.Separator)]
@@ -59,10 +60,10 @@ namespace Tests
         [Theory]
         [InlineData(Comment, ErrorType.MissingEndComment, "/* comment")]
         [InlineData(Comment, ErrorType.MissingEndComment, "/* /* /* comment */ */")]
-        [InlineData(String, ErrorType.MissingEndQuote, "\"✨", "✨")]
-        [InlineData(String, ErrorType.MissingEndQuote, "\'✨", "✨")]
-        [InlineData(String, ErrorType.MissingEndQuote, "\"✨\n", "✨")]
-        [InlineData(String, ErrorType.MissingEndQuote, "\'✨\n", "✨")]
+        [InlineData(StringContent, ErrorType.MissingEndQuote, "\"✨", "✨")]
+        [InlineData(StringContent, ErrorType.MissingEndQuote, "\'✨", "✨")]
+        [InlineData(StringContent, ErrorType.MissingEndQuote, "\"✨\n", "✨")]
+        [InlineData(StringContent, ErrorType.MissingEndQuote, "\'✨\n", "✨")]
         [InlineData(WhiteSpace, ErrorType.UnknownToken, "✨ ")]
         [InlineData(Unknown, ErrorType.UnknownToken, "✨")]
         public void RecoversFromPredictableErrors(
@@ -127,7 +128,7 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Symbol, "var", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(String, "some string", t),
+                (t) => AssertToken(StringContent, "some string", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
                 (t) => AssertToken(Operator, OperatorType.EndStatement, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -156,7 +157,7 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Operator, OperatorType.Assignment, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Error, ErrorType.MissingEndQuote, t),
-                (t) => AssertToken(String, "unfinished string", t),
+                (t) => AssertToken(StringContent, "unfinished string", t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Error, ErrorType.UnknownToken, t),
                 (t) => AssertToken(WhiteSpace, t),
@@ -176,7 +177,7 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Symbol, "var", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(String, "some string", t),
+                (t) => AssertToken(StringContent, "some string", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
                 (t) => AssertToken(Operator, OperatorType.EndStatement, t),
                 (t) => AssertToken(WhiteSpace, t)
@@ -185,6 +186,6 @@ myVal = symbol.method(something, test.var, 'some string');
 
 
         private static List<Token> RunLexer(string script) =>
-            new Lexer(script) { ParsingMode = ParsingMode.Breakout }.GetTokens().ToList();
+            new Lexer(script.AsMemory()) { ParsingMode = ParsingMode.Breakout }.GetTokens().ToList();
     }
 }
