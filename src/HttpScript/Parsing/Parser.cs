@@ -119,13 +119,15 @@ namespace HttpScript.Parsing
         }
 
         /// <summary>
-        /// SimpleValue
-        ///   : STRING_LITERAL | SYMBOL
+        /// Literal
+        ///   : STRING_LITERAL | NUMBER_LITERAL | SYMBOL
         /// </summary>
         private bool Literal()
         {
             var result =
-                this.tokenizer.TryConsumeTokenOfType(StringLiteral, out _);
+                this.tokenizer.TryConsumeTokenOfType(StringLiteral, out _)
+                || this.tokenizer.TryConsumeTokenOfType(NumberLiteral, out _)
+                || this.tokenizer.TryConsumeTokenOfType(Symbol, out _);
 
             return result;
         }
