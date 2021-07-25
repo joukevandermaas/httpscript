@@ -24,15 +24,16 @@ namespace Tests
         [InlineData(Symbol, "SYMBOL", "SYMBOL")]
         [InlineData(StringLiteral, "'✨'", "✨")]
         [InlineData(StringLiteral, "\"✨\"", "✨")]
-        [InlineData(Operator, "=", '=')]
-        [InlineData(Operator, ".", '.')]
-        [InlineData(Operator, ",", ',')]
+        [InlineData(BinaryOperator, "=", '=')]
+        [InlineData(BinaryOperator, ".", '.')]
+        [InlineData(Separator, ",", ',')]
+        [InlineData(Separator, ";", ';')]
         [InlineData(NumberLiteral, "10", 10)]
         [InlineData(NumberLiteral, "100", 100)]
         [InlineData(NumberLiteral, "39843", 39843)]
         [InlineData(NumberLiteral, "000000", 0)]
         [InlineData(Paren, "(", '(')]
-        [InlineData(Paren, ")", ')')]
+        [InlineData(Paren, ")", ")")] // vs test runner breaks if the closing paren content is a char
         [InlineData(Paren, "[", '[')]
         [InlineData(Paren, "]", ']')]
         [InlineData(Paren, "{", '{')]
@@ -53,6 +54,12 @@ namespace Tests
             // it should have consumed the whole input
             Assert.Equal(0, token.Range.StartOffset);
             Assert.Equal(program.Length, token.Range.EndOffset);
+
+            if (tokenType == Paren && content is string strContent)
+            {
+                // work around visual studio test runner bug
+                content = strContent[0];
+            }
 
             AssertContent(content, token);
         }
@@ -114,23 +121,23 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Comment, t),
                 (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, '=', t),
+                (t) => AssertToken(BinaryOperator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "symbol", t),
-                (t) => AssertToken(Operator, '.', t),
+                (t) => AssertToken(BinaryOperator, '.', t),
                 (t) => AssertToken(Symbol, "method", t),
                 (t) => AssertToken(Paren, '(', t),
                 (t) => AssertToken(Symbol, "something", t),
-                (t) => AssertToken(Operator, ',', t),
+                (t) => AssertToken(Separator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),
-                (t) => AssertToken(Operator, '.', t),
+                (t) => AssertToken(BinaryOperator, '.', t),
                 (t) => AssertToken(Symbol, "var", t),
-                (t) => AssertToken(Operator, ',', t),
+                (t) => AssertToken(Separator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(StringLiteral, "some string", t),
                 (t) => AssertToken(Paren, ')', t),
-                (t) => AssertToken(Operator, ';', t),
+                (t) => AssertToken(Separator, ';', t),
                 (t) => AssertToken(WhiteSpace, t),
             };
 
@@ -154,7 +161,7 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Comment, t),
                 (t) => AssertToken(Symbol, "something", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, '=', t),
+                (t) => AssertToken(BinaryOperator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Error, ErrorStrings.MissingEndQuote, t),
                 (t) => AssertToken(StringLiteral, "unfinished string", t),
@@ -163,23 +170,23 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, '=', t),
+                (t) => AssertToken(BinaryOperator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "symbol", t),
-                (t) => AssertToken(Operator, '.', t),
+                (t) => AssertToken(BinaryOperator, '.', t),
                 (t) => AssertToken(Symbol, "method", t),
                 (t) => AssertToken(Paren, '(', t),
                 (t) => AssertToken(Symbol, "something", t),
-                (t) => AssertToken(Operator, ',', t),
+                (t) => AssertToken(Separator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),
-                (t) => AssertToken(Operator, '.', t),
+                (t) => AssertToken(BinaryOperator, '.', t),
                 (t) => AssertToken(Symbol, "var", t),
-                (t) => AssertToken(Operator, ',', t),
+                (t) => AssertToken(Separator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(StringLiteral, "some string", t),
                 (t) => AssertToken(Paren, ')', t),
-                (t) => AssertToken(Operator, ';', t),
+                (t) => AssertToken(Separator, ';', t),
                 (t) => AssertToken(WhiteSpace, t)
             );
         }

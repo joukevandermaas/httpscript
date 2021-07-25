@@ -9,8 +9,9 @@
         Comment = 3,
 
         Paren = 4,
-        Operator = 5,
+        BinaryOperator = 5,
         Symbol = 6,
+        Separator = 7,
 
         StringLiteral = 10,
         NumberLiteral = 11,

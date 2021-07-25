@@ -1,10 +1,11 @@
 using HttpScript.Parsing;
+using HttpScript.Parsing.Tokens;
 using System;
 using Xunit;
 
 namespace Tests
 {
-    public class ParserTest
+    public class ParserTests
     {
 
         [Fact]
@@ -12,8 +13,17 @@ namespace Tests
         {
             var program = @"
 // assign the thing to the thing
-myVal = 'test' // symbol.method(something, test.var, 'some string');
+myVal = symbol.method(321, test.var, 'some string');
 ".AsMemory();
+
+            var token = new Token
+            {
+                Text = program,
+                Value = program,
+                Type = TokenType.Unknown,
+            };
+
+            var val = token.ToString();
 
             var parser = new Parser(program);
 

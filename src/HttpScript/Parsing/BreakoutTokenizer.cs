@@ -18,7 +18,8 @@ namespace HttpScript.Parsing
             errorToken = null;
 
             if (this.TryGetParenToken(out token)) { return true; }
-            if (this.TryGetOperatorToken(out token)) { return true; }
+            if (this.TryGetBinaryOperatorToken(out token)) { return true; }
+            if (this.TryGetSeparatorToken(out token)) { return true; }
             if (this.TryGetCommentToken(out token, out errorToken)) { return true; }
             if (this.TryGetStringLiteralToken(out token, out errorToken)) { return true; }
             if (this.TryGetNumberLiteralToken(out token)) { return true; }
@@ -72,15 +73,36 @@ namespace HttpScript.Parsing
             return false;
         }
 
-        private bool TryGetOperatorToken(out Token token)
+        private bool TryGetSeparatorToken(out Token token)
         {
             this.reader.CreateSnapshot();
 
-            if (this.reader.TryMatchAndAdvance(out var op, '.', '=', ',', ';'))
+            if (this.reader.TryMatchAndAdvance(out var op, ',', ';'))
             {
                 token = new Token()
                 {
-                    Type = TokenType.Operator,
+                    Type = TokenType.Separator,
+                    Range = this.reader.GetRangeFromSnapshot(),
+                    Text = this.reader.GetTextFromSnapshot(),
+                    Value = op,
+                };
+
+                return true;
+            }
+
+            token = default!;
+            return false;
+        }
+
+        private bool TryGetBinaryOperatorToken(out Token token)
+        {
+            this.reader.CreateSnapshot();
+
+            if (this.reader.TryMatchAndAdvance(out var op, '.', '='))
+            {
+                token = new Token()
+                {
+                    Type = TokenType.BinaryOperator,
                     Range = this.reader.GetRangeFromSnapshot(),
                     Text = this.reader.GetTextFromSnapshot(),
                     Value = op,

@@ -22,6 +22,16 @@ namespace HttpScript.Parsing.Tokens
         public static bool operator !=(Token left, Token right) => !(left == right);
         
         public override int GetHashCode() => HashCode.Combine(this.Type, this.Range);
-        public override string ToString() => $"{this.Type} <{this.Range}>";
+        public override string ToString() => $"{this.Type} <{this.Range}>" + (this.Value != null ? this.Value.ToString() : string.Empty);
+
+        private string ValueToString()
+        {
+            if (this.Value is ReadOnlyMemory<char> mem)
+            {
+                return new string(mem.Span);
+            }
+
+            return this.Value?.ToString() ?? string.Empty;
+        }
     }
 }

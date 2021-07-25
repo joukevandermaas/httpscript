@@ -63,20 +63,6 @@ namespace HttpScript.Parsing
 
         public bool HasMoreTokens => !this.reader.IsAtEndOfBuffer() || this.lookAheadQueue.Count > 0;
 
-        public bool TryPeekTokenOfType(TokenType tokenType, out Token token)
-        {
-            var success = this.TryPeekToken(out var maybeToken);
-
-            if (success && maybeToken.Type == tokenType)
-            {
-                token = maybeToken;
-                return true;
-            }
-
-            token = default!;
-            return false;
-        }
-
         public bool TryPeekToken(out Token token)
         {
             var success = this.lookAheadQueue.TryPeek(out var maybeToken);
@@ -87,20 +73,6 @@ namespace HttpScript.Parsing
             }
 
             token = maybeToken!;
-            return success;
-        }
-
-        public bool TryConsumeTokenOfType(TokenType tokenType, out Token token)
-        {
-            var success = this.TryPeekTokenOfType(tokenType, out token);
-
-            if (success)
-            {
-                // dequeue before returning, this will succeed
-                // since the peek succeeded
-                this.lookAheadQueue.TryDequeue(out _);
-            }
-
             return success;
         }
 
