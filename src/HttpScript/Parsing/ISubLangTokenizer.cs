@@ -4,6 +4,6 @@ namespace HttpScript.Parsing
 {
     internal interface ISubLangTokenizer
     {
-        bool TryGetToken(out Token token, out ErrorToken? errorToken);
+        bool TryGetToken(out Token token, out Token? errorToken);
     }
 }

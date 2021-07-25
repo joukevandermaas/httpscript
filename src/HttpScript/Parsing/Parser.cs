@@ -99,8 +99,8 @@ namespace HttpScript.Parsing
 
             this.OptionalCommentOrWhiteSpace();
 
-            if (!this.tokenizer.TryConsumeTokenOfType<OperatorToken>(out var opToken)
-                || opToken.OperatorType != OperatorType.Assignment)
+            if (!this.tokenizer.TryConsumeTokenOfType(Operator, out var opToken)
+                || opToken.GetValue<char>() != '=')
             {
                 this.tokenizer.PopRestorePoint();
                 return false;

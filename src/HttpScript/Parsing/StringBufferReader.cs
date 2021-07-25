@@ -43,6 +43,16 @@ namespace HttpScript.Parsing
             return StringBufferReaderState.GetRange(this.SnapshotState, this.CurrentState);
         }
 
+        public ReadOnlyMemory<char> GetTextFromSnapshot()
+        {
+            var start = this.SnapshotState.Cursor;
+            var end = this.CurrentState.Cursor;
+
+            var slice = this.Buffer[start..end];
+
+            return slice;
+        }
+
         public bool TryMatchSequenceAndAdvance(string match)
         {
             var offset = 0;

@@ -1,4 +1,5 @@
 ﻿using HttpScript.Parsing.Tokens;
+using System;
 using Xunit;
 using static HttpScript.Parsing.Tokens.TokenType;
 
@@ -20,14 +21,10 @@ namespace Tests
         {
             object content = token switch
             {
-                { Type: Error } => (token as ErrorToken).ErrorCode,
-                { Type: StringLiteral } => new string((token as StringLiteralToken).Value.Span),
-                { Type: NumberLiteral } => (token as NumberLiteralToken).Value,
-                { Type: Symbol } => new string((token as SymbolToken).Name.Span),
-                { Type: Paren } => ((token as ParenToken).ParenType, (token as ParenToken).ParenMode),
-                { Type: Operator } => (token as OperatorToken).OperatorType,
+                { Type: StringLiteral } => new string(token.GetValue<ReadOnlyMemory<char>>().Span),
+                { Type: Symbol } => new string(token.GetValue<ReadOnlyMemory<char>>().Span),
 
-                _ => null,
+                _ => token.Value,
             };
 
             Assert.Equal(expected, content);

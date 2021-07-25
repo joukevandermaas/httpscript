@@ -40,29 +40,29 @@ myVal = symbol.method(something, test.var, 'some string');
                 }
             }
 
-            var asserts = new List<System.Action<Token>>()
+            var asserts = new List<Action<Token>>()
             {
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Comment, t),
                 (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, OperatorType.Assignment, t),
+                (t) => AssertToken(Operator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "symbol", t),
-                (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
+                (t) => AssertToken(Operator, '.', t),
                 (t) => AssertToken(Symbol, "method", t),
-                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
+                (t) => AssertToken(Paren, '(', t),
                 (t) => AssertToken(Symbol, "something", t),
-                (t) => AssertToken(Operator, OperatorType.Separator, t),
+                (t) => AssertToken(Operator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),
-                (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
+                (t) => AssertToken(Operator, '.', t),
                 (t) => AssertToken(Symbol, "var", t),
-                (t) => AssertToken(Operator, OperatorType.Separator, t),
+                (t) => AssertToken(Operator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(StringLiteral, "some string", t),
-                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
-                (t) => AssertToken(Operator, OperatorType.EndStatement, t),
+                (t) => AssertToken(Paren, ')', t),
+                (t) => AssertToken(Operator, ';', t),
                 (t) => AssertToken(WhiteSpace, t),
             };
 

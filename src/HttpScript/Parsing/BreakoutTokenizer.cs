@@ -12,7 +12,7 @@ namespace HttpScript.Parsing
             this.reader = reader;
         }
 
-        public bool TryGetToken(out Token token, out ErrorToken? errorToken)
+        public bool TryGetToken(out Token token, out Token? errorToken)
         {
             // most token types won't have tokenizer errors
             errorToken = null;
@@ -54,23 +54,21 @@ namespace HttpScript.Parsing
                     }
                 }
 
-                var prevCharOffset = this.reader.SnapshotState.Cursor;
-                var currCharOffset = this.reader.CurrentState.Cursor;
-                var name = this.reader.Buffer.Slice(
-                    prevCharOffset,
-                    currCharOffset - prevCharOffset);
+                var text = this.reader.GetTextFromSnapshot();
 
-                token = new SymbolToken()
+                token = new Token()
                 {
-                    Name = name,
+                    Type = TokenType.Symbol,
                     Range = this.reader.GetRangeFromSnapshot(),
+                    Text = text,
+                    Value = text,
                 };
 
                 return true;
             }
 
             this.reader.RestoreSnapshot();
-            token = Token.Empty;
+            token = default!;
             return false;
         }
 
@@ -80,25 +78,18 @@ namespace HttpScript.Parsing
 
             if (this.reader.TryMatchAndAdvance(out var op, '.', '=', ',', ';'))
             {
-                token = new OperatorToken()
+                token = new Token()
                 {
+                    Type = TokenType.Operator,
                     Range = this.reader.GetRangeFromSnapshot(),
-                    OperatorType = op switch
-                    {
-                        '.' => OperatorType.MemberAccess,
-                        '=' => OperatorType.Assignment,
-                        ',' => OperatorType.Separator,
-                        ';' => OperatorType.EndStatement,
-
-                        // just in case we forget to add it here
-                        _ => throw new NotImplementedException(),
-                    }
+                    Text = this.reader.GetTextFromSnapshot(),
+                    Value = op,
                 };
 
                 return true;
             }
 
-            token = Token.Empty;
+            token = default!;
             return false;
         }
 
@@ -106,47 +97,24 @@ namespace HttpScript.Parsing
         {
             this.reader.CreateSnapshot();
 
-            if (this.reader.TryMatchAndAdvance(out var paren, '(', ')'))
+            if (this.reader.TryMatchAndAdvance(out var paren, '(', ')', '{', '}', '[', ']'))
             {
-                token = new ParenToken()
+                token = new Token()
                 {
+                    Type = TokenType.Paren,
                     Range = this.reader.GetRangeFromSnapshot(),
-                    ParenType = ParenType.Round,
-                    ParenMode = paren == '(' ? ParenMode.Open : ParenMode.Close,
+                    Text = this.reader.GetTextFromSnapshot(),
+                    Value = paren,
                 };
 
                 return true;
             }
 
-            if (this.reader.TryMatchAndAdvance(out var bracket, '[', ']'))
-            {
-                token = new ParenToken()
-                {
-                    Range = this.reader.GetRangeFromSnapshot(),
-                    ParenType = ParenType.Square,
-                    ParenMode = bracket == '[' ? ParenMode.Open : ParenMode.Close,
-                };
-
-                return true;
-            }
-
-            if (this.reader.TryMatchAndAdvance(out var curly, '{', '}'))
-            {
-                token = new ParenToken()
-                {
-                    Range = this.reader.GetRangeFromSnapshot(),
-                    ParenType = ParenType.Curly,
-                    ParenMode = curly == '{' ? ParenMode.Open : ParenMode.Close,
-                };
-
-                return true;
-            }
-
-            token = Token.Empty;
+            token = default!;
             return false;
         }
 
-        private bool TryGetStringLiteralToken(out Token token, out ErrorToken? errorToken)
+        private bool TryGetStringLiteralToken(out Token token, out Token? errorToken)
         {
             errorToken = null;
             this.reader.CreateSnapshot();
@@ -161,12 +129,14 @@ namespace HttpScript.Parsing
 
                     if (chr == '\n')
                     {
-                        errorToken = new ErrorToken()
+                        errorToken = new Token()
                         {
                             // debatable where the error should be, it kind of makes
                             // sense to mark the whole string token
+                            Type = TokenType.Error,
                             Range = this.reader.GetRangeFromSnapshot(),
-                            ErrorCode = ErrorType.MissingEndQuote,
+                            Text = this.reader.GetTextFromSnapshot(),
+                            Value = ErrorStrings.MissingEndQuote,
                         };
 
                         // pretend that we found a close quote so we can
@@ -182,21 +152,20 @@ namespace HttpScript.Parsing
                     if (chr == openQuote)
                     {
                         // end of string
-                        var prevOffset = this.reader.SnapshotState.Cursor;
-                        var currOffset = this.reader.CurrentState.Cursor;
-                        var stringContent = this.reader.Buffer.Slice(
-                            prevOffset + 1,
-                            currOffset - prevOffset - 1);
 
                         if (skipEndQuote)
                         {
                             this.reader.Skip();
                         }
 
-                        token = new StringLiteralToken()
+                        var text = this.reader.GetTextFromSnapshot();
+
+                        token = new Token()
                         {
+                            Type = TokenType.StringLiteral,
                             Range = this.reader.GetRangeFromSnapshot(),
-                            Value = stringContent,
+                            Text = text,
+                            Value = text[1..^(skipEndQuote ? 1 : 0)],
                         };
 
                         return true;
@@ -208,35 +177,35 @@ namespace HttpScript.Parsing
                     }
                 }
 
+                var incompleteText = this.reader.GetTextFromSnapshot();
+
                 // if we get here that means we've matched the open quote and then
                 // hit eof before ever seeing the closing quote, so that's an error
-                errorToken = new ErrorToken()
+                errorToken = new Token()
                 {
                     // debatable where the error should be, it kind of makes
                     // sense to mark the whole string token
+                    Type = TokenType.Error,
                     Range = this.reader.GetRangeFromSnapshot(),
-                    ErrorCode = ErrorType.MissingEndQuote,
+                    Value = ErrorStrings.MissingEndQuote,
+                    Text = incompleteText,
                 };
 
                 // however we can still just report the string token we have matched
                 // so far 
-                var unfinishedPrevOffset = this.reader.SnapshotState.Cursor;
-                var unfinishedCurrOffset = this.reader.CurrentState.Cursor;
-                var unfinishedStringContent = this.reader.Buffer.Slice(
-                    unfinishedPrevOffset + 1,
-                    unfinishedCurrOffset - unfinishedPrevOffset - 1);
-
-                token = new StringLiteralToken()
+                token = new Token()
                 {
+                    Type = TokenType.StringLiteral,
                     Range = this.reader.GetRangeFromSnapshot(),
-                    Value = unfinishedStringContent,
+                    Text = incompleteText,
+                    Value = incompleteText[1..^0],
                 };
 
                 return true;
             }
 
             this.reader.RestoreSnapshot();
-            token = Token.Empty;
+            token = default!;
             return false;
         }
 
@@ -262,9 +231,11 @@ namespace HttpScript.Parsing
 
                 var value = int.Parse(span);
 
-                token = new NumberLiteralToken()
+                token = new Token()
                 {
+                    Type = TokenType.NumberLiteral,
                     Range = this.reader.GetRangeFromSnapshot(),
+                    Text = this.reader.GetTextFromSnapshot(),
                     Value = value,
                 };
 
@@ -272,11 +243,11 @@ namespace HttpScript.Parsing
             }
 
             this.reader.RestoreSnapshot();
-            token = Token.Empty;
+            token = default!;
             return false;
         }
 
-        private bool TryGetCommentToken(out Token token, out ErrorToken? errorToken)
+        private bool TryGetCommentToken(out Token token, out Token? errorToken)
         {
             this.reader.CreateSnapshot();
             errorToken = null;
@@ -292,6 +263,8 @@ namespace HttpScript.Parsing
                 {
                     Type = TokenType.Comment,
                     Range = this.reader.GetRangeFromSnapshot(),
+                    Text = this.reader.GetTextFromSnapshot(),
+                    Value = null,
                 };
 
                 return true;
@@ -329,6 +302,8 @@ namespace HttpScript.Parsing
                     {
                         Type = TokenType.Comment,
                         Range = this.reader.GetRangeFromSnapshot(),
+                        Text = this.reader.GetTextFromSnapshot(),
+                        Value = null,
                     };
                     return true;
                 }
@@ -345,8 +320,10 @@ namespace HttpScript.Parsing
 
                     errorToken = new()
                     {
-                        ErrorCode = ErrorType.MissingEndComment,
+                        Type = TokenType.Error,
                         Range = this.reader.GetRangeFromSnapshot(),
+                        Text = this.reader.GetTextFromSnapshot(),
+                        Value = ErrorStrings.MissingEndComment,
                     };
 
                     return true;
@@ -354,7 +331,7 @@ namespace HttpScript.Parsing
             }
 
             this.reader.RestoreSnapshot();
-            token = Token.Empty;
+            token = default!;
             return false;
         }
     }

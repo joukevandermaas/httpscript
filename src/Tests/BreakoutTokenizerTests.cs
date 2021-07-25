@@ -24,13 +24,19 @@ namespace Tests
         [InlineData(Symbol, "SYMBOL", "SYMBOL")]
         [InlineData(StringLiteral, "'✨'", "✨")]
         [InlineData(StringLiteral, "\"✨\"", "✨")]
-        [InlineData(Operator, "=", OperatorType.Assignment)]
-        [InlineData(Operator, ".", OperatorType.MemberAccess)]
-        [InlineData(Operator, ",", OperatorType.Separator)]
+        [InlineData(Operator, "=", '=')]
+        [InlineData(Operator, ".", '.')]
+        [InlineData(Operator, ",", ',')]
         [InlineData(NumberLiteral, "10", 10)]
         [InlineData(NumberLiteral, "100", 100)]
         [InlineData(NumberLiteral, "39843", 39843)]
         [InlineData(NumberLiteral, "000000", 0)]
+        [InlineData(Paren, "(", '(')]
+        [InlineData(Paren, ")", ')')]
+        [InlineData(Paren, "[", '[')]
+        [InlineData(Paren, "]", ']')]
+        [InlineData(Paren, "{", '{')]
+        [InlineData(Paren, "}", '}')]
         public void RecognizesSingleToken(TokenType tokenType, string program, object content = null)
         {
             var tokens = RunTokenizer(program);
@@ -42,6 +48,8 @@ namespace Tests
             // the token should have the correct type
             Assert.Equal(tokenType, token.Type);
 
+            Assert.Equal(program, new string(token.Text.Span));
+
             // it should have consumed the whole input
             Assert.Equal(0, token.Range.StartOffset);
             Assert.Equal(program.Length, token.Range.EndOffset);
@@ -50,37 +58,25 @@ namespace Tests
         }
 
         [Theory]
-        [InlineData("(", ParenType.Round, ParenMode.Open)]
-        [InlineData(")", ParenType.Round, ParenMode.Close)]
-        [InlineData("[", ParenType.Square, ParenMode.Open)]
-        [InlineData("]", ParenType.Square, ParenMode.Close)]
-        [InlineData("{", ParenType.Curly, ParenMode.Open)]
-        [InlineData("}", ParenType.Curly, ParenMode.Close)]
-        public void RecognizesSingleParen(string program, ParenType parenType, ParenMode parenMode)
-        {
-            this.RecognizesSingleToken(Paren, program, (parenType, parenMode));
-        }
-
-        [Theory]
-        [InlineData(Comment, ErrorType.MissingEndComment, "/* comment")]
-        [InlineData(Comment, ErrorType.MissingEndComment, "/* /* /* comment */ */")]
-        [InlineData(StringLiteral, ErrorType.MissingEndQuote, "\"✨", "✨")]
-        [InlineData(StringLiteral, ErrorType.MissingEndQuote, "\'✨", "✨")]
-        [InlineData(StringLiteral, ErrorType.MissingEndQuote, "\"✨\n", "✨")]
-        [InlineData(StringLiteral, ErrorType.MissingEndQuote, "\'✨\n", "✨")]
-        [InlineData(WhiteSpace, ErrorType.UnknownToken, "✨ ")]
-        [InlineData(Unknown, ErrorType.UnknownToken, "✨")]
+        [InlineData(Comment, ErrorStrings.MissingEndComment, "/* comment")]
+        [InlineData(Comment, ErrorStrings.MissingEndComment, "/* /* /* comment */ */")]
+        [InlineData(StringLiteral, ErrorStrings.MissingEndQuote, "\"✨", "✨")]
+        [InlineData(StringLiteral, ErrorStrings.MissingEndQuote, "\'✨", "✨")]
+        [InlineData(StringLiteral, ErrorStrings.MissingEndQuote, "\"✨\n", "✨")]
+        [InlineData(StringLiteral, ErrorStrings.MissingEndQuote, "\'✨\n", "✨")]
+        [InlineData(WhiteSpace, ErrorStrings.InvalidToken, "✨ ")]
+        [InlineData(Unknown, ErrorStrings.InvalidToken, "✨")]
         public void RecoversFromPredictableErrors(
             TokenType tokenType,
-            ErrorType errorType,
+            string errorMessage,
             string program,
             object content = null)
         {
             var tokens = RunTokenizer(program);
 
-            var asserts = new List<System.Action<Token>>()
+            var asserts = new List<Action<Token>>()
             {
-                (t) => Assert.Equal(errorType, (t as ErrorToken).ErrorCode),
+                (t) => Assert.Equal(errorMessage, t.Value),
             };
 
             if (tokenType != Unknown)
@@ -112,29 +108,29 @@ myVal = symbol.method(something, test.var, 'some string');
 
             var tokens = RunTokenizer(program);
 
-            var asserts = new List<System.Action<Token>>()
+            var asserts = new List<Action<Token>>()
             {
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Comment, t),
                 (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, OperatorType.Assignment, t),
+                (t) => AssertToken(Operator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "symbol", t),
-                (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
+                (t) => AssertToken(Operator, '.', t),
                 (t) => AssertToken(Symbol, "method", t),
-                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
+                (t) => AssertToken(Paren, '(', t),
                 (t) => AssertToken(Symbol, "something", t),
-                (t) => AssertToken(Operator, OperatorType.Separator, t),
+                (t) => AssertToken(Operator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),
-                (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
+                (t) => AssertToken(Operator, '.', t),
                 (t) => AssertToken(Symbol, "var", t),
-                (t) => AssertToken(Operator, OperatorType.Separator, t),
+                (t) => AssertToken(Operator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(StringLiteral, "some string", t),
-                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
-                (t) => AssertToken(Operator, OperatorType.EndStatement, t),
+                (t) => AssertToken(Paren, ')', t),
+                (t) => AssertToken(Operator, ';', t),
                 (t) => AssertToken(WhiteSpace, t),
             };
 
@@ -158,32 +154,32 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Comment, t),
                 (t) => AssertToken(Symbol, "something", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, OperatorType.Assignment, t),
+                (t) => AssertToken(Operator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Error, ErrorType.MissingEndQuote, t),
+                (t) => AssertToken(Error, ErrorStrings.MissingEndQuote, t),
                 (t) => AssertToken(StringLiteral, "unfinished string", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Error, ErrorType.UnknownToken, t),
+                (t) => AssertToken(Error, ErrorStrings.InvalidToken, t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "myVal", t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(Operator, OperatorType.Assignment, t),
+                (t) => AssertToken(Operator, '=', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "symbol", t),
-                (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
+                (t) => AssertToken(Operator, '.', t),
                 (t) => AssertToken(Symbol, "method", t),
-                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Open), t),
+                (t) => AssertToken(Paren, '(', t),
                 (t) => AssertToken(Symbol, "something", t),
-                (t) => AssertToken(Operator, OperatorType.Separator, t),
+                (t) => AssertToken(Operator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(Symbol, "test", t),
-                (t) => AssertToken(Operator, OperatorType.MemberAccess, t),
+                (t) => AssertToken(Operator, '.', t),
                 (t) => AssertToken(Symbol, "var", t),
-                (t) => AssertToken(Operator, OperatorType.Separator, t),
+                (t) => AssertToken(Operator, ',', t),
                 (t) => AssertToken(WhiteSpace, t),
                 (t) => AssertToken(StringLiteral, "some string", t),
-                (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
-                (t) => AssertToken(Operator, OperatorType.EndStatement, t),
+                (t) => AssertToken(Paren, ')', t),
+                (t) => AssertToken(Operator, ';', t),
                 (t) => AssertToken(WhiteSpace, t)
             );
         }

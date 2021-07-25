@@ -73,30 +73,8 @@ namespace HttpScript.Parsing
                 return true;
             }
 
-            token = Token.Empty;
+            token = default!;
             return false;
-        }
-
-        public bool TryPeekTokenOfType<T>(out T token) where T : Token
-        {
-            var success = this.TryPeekToken(out var untypedToken);
-
-            if (!success)
-            {
-                token = default!;
-                return false;
-            }
-
-            var typedToken = untypedToken as T;
-
-            if (typedToken == null)
-            {
-                token = default!;
-                return false;
-            }
-
-            token = typedToken;
-            return true;
         }
 
         public bool TryPeekToken(out Token token)
@@ -108,27 +86,13 @@ namespace HttpScript.Parsing
                 success = this.lookAheadQueue.TryPeek(out maybeToken);
             }
 
-            token = maybeToken ?? Token.Empty;
+            token = maybeToken!;
             return success;
         }
 
         public bool TryConsumeTokenOfType(TokenType tokenType, out Token token)
         {
             var success = this.TryPeekTokenOfType(tokenType, out token);
-
-            if (success)
-            {
-                // dequeue before returning, this will succeed
-                // since the peek succeeded
-                this.lookAheadQueue.TryDequeue(out _);
-            }
-
-            return success;
-        }
-
-        public bool TryConsumeTokenOfType<T>(out T token) where T : Token
-        {
-            var success = this.TryPeekTokenOfType(out token);
 
             if (success)
             {
@@ -174,7 +138,7 @@ namespace HttpScript.Parsing
             {
                 if (errorToken != null)
                 {
-                    this.lookAheadQueue.Enqueue(errorToken);
+                    this.lookAheadQueue.Enqueue(errorToken.Value);
                 }
 
                 this.lookAheadQueue.Enqueue(parsedToken);
@@ -207,7 +171,7 @@ namespace HttpScript.Parsing
             }
         }
 
-        private bool TryGetToken(out Token token, out ErrorToken? errorToken)
+        private bool TryGetToken(out Token token, out Token? errorToken)
         {
             if (this.TryGetWhiteSpaceToken(out token))
             {
@@ -240,17 +204,19 @@ namespace HttpScript.Parsing
                     {
                         // ok we found a good token now, or there's nothing more to
                         // be found, we should enqueue our error
-                        this.lookAheadQueue.Enqueue(new ErrorToken()
+                        this.lookAheadQueue.Enqueue(new Token()
                         {
+                            Type = TokenType.Error,
+                            Value = ErrorStrings.InvalidToken,
                             Range = StringBufferReaderState.GetRange(errorStartPos, errorEndPos),
-                            ErrorCode = ErrorType.UnknownToken,
+                            Text = buffer[errorStartPos.Cursor..errorEndPos.Cursor],
                         });
 
                         // if the token was faulty in predictable ways we should
                         // first enqueue that error now
                         if (errorToken != null)
                         {
-                            this.lookAheadQueue.Enqueue(errorToken);
+                            this.lookAheadQueue.Enqueue(errorToken.Value);
                         }
 
                         // finally we should enqueue the good token we found
@@ -262,10 +228,12 @@ namespace HttpScript.Parsing
                 else
                 {
                     // we reached the end of the buffer
-                    this.lookAheadQueue.Enqueue(new ErrorToken()
+                    this.lookAheadQueue.Enqueue(new Token()
                     {
+                        Type = TokenType.Error,
+                        Value = ErrorStrings.InvalidToken,
                         Range = StringBufferReaderState.GetRange(errorStartPos, errorEndPos),
-                        ErrorCode = ErrorType.UnknownToken,
+                        Text = buffer[errorStartPos.Cursor..errorEndPos.Cursor],
                     });
 
                     // we didn't find a token but we can't find any
@@ -289,19 +257,20 @@ namespace HttpScript.Parsing
 
             if (anyConsumed)
             {
-                var range = this.reader.GetRangeFromSnapshot();
 
                 token = new()
                 {
                     Type = TokenType.WhiteSpace,
-                    Range = range,
+                    Text = this.reader.GetTextFromSnapshot(),
+                    Range = this.reader.GetRangeFromSnapshot(),
+                    Value = null,
                 };
 
                 return true;
             }
 
             this.reader.RestoreSnapshot();
-            token = Token.Empty;
+            token = default!;
             return false;
         }
 
