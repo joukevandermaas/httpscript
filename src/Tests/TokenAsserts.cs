@@ -21,8 +21,9 @@ namespace Tests
             object content = token switch
             {
                 { Type: Error } => (token as ErrorToken).ErrorCode,
-                { Type: StringContent } => (token as StringToken).Value,
-                { Type: Symbol } => (token as SymbolToken).Name,
+                { Type: StringLiteral } => new string((token as StringLiteralToken).Value.Span),
+                { Type: NumberLiteral } => (token as NumberLiteralToken).Value,
+                { Type: Symbol } => new string((token as SymbolToken).Name.Span),
                 { Type: Paren } => ((token as ParenToken).ParenType, (token as ParenToken).ParenMode),
                 { Type: Operator } => (token as OperatorToken).OperatorType,
 

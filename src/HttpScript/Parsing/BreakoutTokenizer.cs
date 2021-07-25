@@ -3,24 +3,25 @@ using System;
 
 namespace HttpScript.Parsing
 {
-    internal class BreakoutLexer : ISublangLexer
+    internal class BreakoutTokenizer : ISubLangTokenizer
     {
         private readonly StringBufferReader reader;
 
-        public BreakoutLexer(StringBufferReader reader)
+        public BreakoutTokenizer(StringBufferReader reader)
         {
             this.reader = reader;
         }
 
         public bool TryGetToken(out Token token, out ErrorToken? errorToken)
         {
-            // most token types won't have lexer errors
+            // most token types won't have tokenizer errors
             errorToken = null;
 
             if (this.TryGetParenToken(out token)) { return true; }
             if (this.TryGetOperatorToken(out token)) { return true; }
             if (this.TryGetCommentToken(out token, out errorToken)) { return true; }
-            if (this.TryGetStringToken(out token, out errorToken)) { return true; }
+            if (this.TryGetStringLiteralToken(out token, out errorToken)) { return true; }
+            if (this.TryGetNumberLiteralToken(out token)) { return true; }
             if (this.TryGetSymbolToken(out token)) { return true; }
 
             // we don't know wtf is going on, we should let the main
@@ -53,15 +54,15 @@ namespace HttpScript.Parsing
                     }
                 }
 
-                var prevCharOffset = this.reader.SnapshotState.CharOffset;
-                var currCharOffset = this.reader.CurrentState.CharOffset;
+                var prevCharOffset = this.reader.SnapshotState.Cursor;
+                var currCharOffset = this.reader.CurrentState.Cursor;
                 var name = this.reader.Buffer.Slice(
                     prevCharOffset,
                     currCharOffset - prevCharOffset);
 
                 token = new SymbolToken()
                 {
-                    Name = new string(name.Span),
+                    Name = name,
                     Range = this.reader.GetRangeFromSnapshot(),
                 };
 
@@ -145,7 +146,7 @@ namespace HttpScript.Parsing
             return false;
         }
 
-        private bool TryGetStringToken(out Token token, out ErrorToken? errorToken)
+        private bool TryGetStringLiteralToken(out Token token, out ErrorToken? errorToken)
         {
             errorToken = null;
             this.reader.CreateSnapshot();
@@ -181,8 +182,8 @@ namespace HttpScript.Parsing
                     if (chr == openQuote)
                     {
                         // end of string
-                        var prevOffset = this.reader.SnapshotState.CharOffset;
-                        var currOffset = this.reader.CurrentState.CharOffset;
+                        var prevOffset = this.reader.SnapshotState.Cursor;
+                        var currOffset = this.reader.CurrentState.Cursor;
                         var stringContent = this.reader.Buffer.Slice(
                             prevOffset + 1,
                             currOffset - prevOffset - 1);
@@ -192,10 +193,10 @@ namespace HttpScript.Parsing
                             this.reader.Skip();
                         }
 
-                        token = new StringToken()
+                        token = new StringLiteralToken()
                         {
                             Range = this.reader.GetRangeFromSnapshot(),
-                            Value = new string(stringContent.Span),
+                            Value = stringContent,
                         };
 
                         return true;
@@ -219,16 +220,52 @@ namespace HttpScript.Parsing
 
                 // however we can still just report the string token we have matched
                 // so far 
-                var unfinishedPrevOffset = this.reader.SnapshotState.CharOffset;
-                var unfinishedCurrOffset = this.reader.CurrentState.CharOffset;
+                var unfinishedPrevOffset = this.reader.SnapshotState.Cursor;
+                var unfinishedCurrOffset = this.reader.CurrentState.Cursor;
                 var unfinishedStringContent = this.reader.Buffer.Slice(
                     unfinishedPrevOffset + 1,
                     unfinishedCurrOffset - unfinishedPrevOffset - 1);
 
-                token = new StringToken()
+                token = new StringLiteralToken()
                 {
                     Range = this.reader.GetRangeFromSnapshot(),
-                    Value = new string(unfinishedStringContent.Span),
+                    Value = unfinishedStringContent,
+                };
+
+                return true;
+            }
+
+            this.reader.RestoreSnapshot();
+            token = Token.Empty;
+            return false;
+        }
+
+        private bool TryGetNumberLiteralToken(out Token token)
+        {
+            this.reader.CreateSnapshot();
+
+            bool consumedAny = false;
+
+            while (this.reader.TryPeek(out var chr) && char.IsDigit(chr))
+            {
+                this.reader.Advance();
+                consumedAny = true;
+            }
+
+            if (consumedAny)
+            {
+                // success
+                var startCursor = this.reader.SnapshotState.Cursor;
+                var endCursor = this.reader.CurrentState.Cursor;
+
+                var span = this.reader.Buffer.Slice(startCursor, endCursor - startCursor).Span;
+
+                var value = int.Parse(span);
+
+                token = new NumberLiteralToken()
+                {
+                    Range = this.reader.GetRangeFromSnapshot(),
+                    Value = value,
                 };
 
                 return true;

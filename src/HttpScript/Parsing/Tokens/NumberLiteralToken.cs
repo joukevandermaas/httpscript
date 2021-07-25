@@ -1,13 +1,13 @@
 ﻿namespace HttpScript.Parsing.Tokens
 {
-    public class StringToken : Token
+    public class NumberLiteralToken : Token
     {
-        public StringToken()
+        public NumberLiteralToken()
         {
-            base.Type = TokenType.StringContent;
+            base.Type = TokenType.NumberLiteral;
         }
 
-        public string Value { get; init; } = string.Empty;
+        public int Value { get; init; }
 
         public override string ToString()
         {

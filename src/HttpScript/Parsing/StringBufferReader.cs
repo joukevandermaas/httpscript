@@ -10,7 +10,7 @@ namespace HttpScript.Parsing
         // sometimes it's cleaner to just do it from the outside
         public StringBufferReaderState CurrentState { get; set; } = new()
         {
-            CharOffset = 0,
+            Cursor = 0,
             LineNumber = 1,
             LineStartOffset = 0,
             PreviousLineOffset = 0
@@ -129,7 +129,7 @@ namespace HttpScript.Parsing
 
         public bool IsAtEndOfBuffer()
         {
-            var pos = this.CurrentState.CharOffset;
+            var pos = this.CurrentState.Cursor;
 
             return pos >= this.Buffer.Length;
         }
@@ -140,7 +140,7 @@ namespace HttpScript.Parsing
         {
             var character = this.Peek(out var consumed);
 
-            var newCharOffset = this.CurrentState.CharOffset + consumed;
+            var newCharOffset = this.CurrentState.Cursor + consumed;
             var newLineStartOffset = this.CurrentState.LineStartOffset;
             var previousLineOffset = this.CurrentState.PreviousLineOffset;
             var newLineNumber = this.CurrentState.LineNumber;
@@ -156,7 +156,7 @@ namespace HttpScript.Parsing
 
             this.CurrentState = new()
             {
-                CharOffset = newCharOffset,
+                Cursor = newCharOffset,
                 LineStartOffset = newLineStartOffset,
                 PreviousLineOffset = previousLineOffset,
                 LineNumber = newLineNumber,
@@ -170,7 +170,7 @@ namespace HttpScript.Parsing
         private char Peek(out int consumed)
         {
             // this can fail if pos is out of range
-            var pos = this.CurrentState.CharOffset;
+            var pos = this.CurrentState.Cursor;
 
             var character = this.Buffer.Span[pos];
 

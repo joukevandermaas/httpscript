@@ -6,10 +6,13 @@
         Error = 1,
 
         WhiteSpace = 2,
-        StringContent = 3, // 'String' conflicts with System.String
+        Comment = 3,
+
         Paren = 4,
         Operator = 5,
         Symbol = 6,
-        Comment = 7,
+
+        StringLiteral = 10,
+        NumberLiteral = 11,
     }
 }

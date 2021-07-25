@@ -8,10 +8,10 @@ namespace HttpScript
     {
         static void Main(string[] args)
         {
-            var lexer = new Lexer("$survey".AsMemory());
-            lexer.ParsingMode = ParsingMode.Breakout;
+            var tokenizer = new Tokenizer("$survey".AsMemory());
+            tokenizer.ParsingMode = ParsingMode.Breakout;
 
-            var tokens = lexer.GetTokens().ToList();
+            var tokens = tokenizer.GetTokens().ToList();
         }
     }
 }

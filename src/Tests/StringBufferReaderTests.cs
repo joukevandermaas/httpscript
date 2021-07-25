@@ -20,7 +20,7 @@ namespace Tests
             reader.Advance();
             reader.Advance();
 
-            Assert.Equal(1, reader.SnapshotState.CharOffset);
+            Assert.Equal(1, reader.SnapshotState.Cursor);
             Assert.Equal(1, reader.SnapshotState.LineNumber);
             Assert.Equal(0, reader.SnapshotState.LineStartOffset);
             Assert.Equal(0, reader.SnapshotState.PreviousLineOffset);
@@ -39,7 +39,7 @@ namespace Tests
             reader.RestoreSnapshot();
 
             Assert.Equal(default, reader.SnapshotState);
-            Assert.Equal(1, reader.CurrentState.CharOffset);
+            Assert.Equal(1, reader.CurrentState.Cursor);
             Assert.Equal(1, reader.CurrentState.LineNumber);
             Assert.Equal(0, reader.CurrentState.LineStartOffset);
             Assert.Equal(0, reader.CurrentState.PreviousLineOffset);
@@ -58,7 +58,7 @@ namespace Tests
             reader.DiscardSnapshot();
 
             Assert.Equal(default, reader.SnapshotState);
-            Assert.Equal(3, reader.CurrentState.CharOffset);
+            Assert.Equal(3, reader.CurrentState.Cursor);
             Assert.Equal(1, reader.CurrentState.LineNumber);
             Assert.Equal(0, reader.CurrentState.LineStartOffset);
             Assert.Equal(0, reader.CurrentState.PreviousLineOffset);

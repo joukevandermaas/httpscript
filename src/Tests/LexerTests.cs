@@ -8,7 +8,7 @@ using static Tests.TokenAsserts;
 
 namespace Tests
 {
-    public class LexerTest
+    public class TokenizerTests
     {
 
         [Fact]
@@ -19,15 +19,15 @@ namespace Tests
 myVal = symbol.method(something, test.var, 'some string');
 ".AsMemory();
 
-            var lexer = new Lexer(program) { ParsingMode = ParsingMode.Breakout };
+            var tokenizer = new Tokenizer(program) { ParsingMode = ParsingMode.Breakout };
             var tokens = new List<Token>();
 
             var success = true;
 
             while (success)
             {
-                var peekSuccess = lexer.TryPeekToken(out var peekToken);
-                var consumeSuccess = lexer.TryConsumeToken(out var consumeToken);
+                var peekSuccess = tokenizer.TryPeekToken(out var peekToken);
+                var consumeSuccess = tokenizer.TryConsumeToken(out var consumeToken);
 
                 Assert.Equal(peekSuccess, consumeSuccess);
                 Assert.Equal(peekToken, consumeToken);
@@ -60,7 +60,7 @@ myVal = symbol.method(something, test.var, 'some string');
                 (t) => AssertToken(Symbol, "var", t),
                 (t) => AssertToken(Operator, OperatorType.Separator, t),
                 (t) => AssertToken(WhiteSpace, t),
-                (t) => AssertToken(StringContent, "some string", t),
+                (t) => AssertToken(StringLiteral, "some string", t),
                 (t) => AssertToken(Paren, (ParenType.Round, ParenMode.Close), t),
                 (t) => AssertToken(Operator, OperatorType.EndStatement, t),
                 (t) => AssertToken(WhiteSpace, t),

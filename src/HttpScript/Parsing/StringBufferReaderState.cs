@@ -5,14 +5,14 @@ namespace HttpScript.Parsing
 {
     internal struct StringBufferReaderState : IComparable<StringBufferReaderState>, IEquatable<StringBufferReaderState>
     {
-        public int CharOffset { get; init; }
+        public int Cursor { get; init; }
         public int PreviousLineOffset { get; init; }
         public int LineStartOffset { get; init; }
         public int LineNumber { get; init; }
 
         public override string ToString()
         {
-            return $"L{this.LineNumber}C{this.CharOffset - this.LineStartOffset + 1}";
+            return $"L{this.LineNumber}C{this.Cursor - this.LineStartOffset + 1}";
         }
 
         public bool Equals(StringBufferReaderState other)
@@ -26,7 +26,7 @@ namespace HttpScript.Parsing
             // the other values should be the same too if this matches.
             // that said if you compare the states for two different strings
             // that won't hold (but we don't care about that)
-            return this.CharOffset - other.CharOffset;
+            return this.Cursor - other.Cursor;
         }
 
         public override bool Equals([NotNullWhen(true)] object? obj)
@@ -36,13 +36,13 @@ namespace HttpScript.Parsing
 
         public override int GetHashCode()
         {
-            return this.CharOffset.GetHashCode();
+            return this.Cursor.GetHashCode();
         }
 
         public static Range GetRange(StringBufferReaderState start, StringBufferReaderState end)
         {
             var endLine = end.LineNumber;
-            var endCharacter = end.CharOffset - end.LineStartOffset;
+            var endCharacter = end.Cursor - end.LineStartOffset;
 
             if (endCharacter == 0)
             {
@@ -54,11 +54,11 @@ namespace HttpScript.Parsing
 
             return new()
             {
-                StartOffset = start.CharOffset,
-                EndOffset = end.CharOffset,
+                StartOffset = start.Cursor,
+                EndOffset = end.Cursor,
                 StartLine = start.LineNumber,
                 EndLine = endLine,
-                StartCharacter = start.CharOffset - start.LineStartOffset + 1,
+                StartCharacter = start.Cursor - start.LineStartOffset + 1,
                 EndCharacter = endCharacter,
             };
         }

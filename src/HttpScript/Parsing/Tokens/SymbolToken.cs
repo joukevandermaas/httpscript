@@ -1,4 +1,6 @@
-﻿namespace HttpScript.Parsing.Tokens
+﻿using System;
+
+namespace HttpScript.Parsing.Tokens
 {
     public class SymbolToken : Token
     {
@@ -7,7 +9,7 @@
             base.Type = TokenType.Symbol;
         }
 
-        public string Name { get; init; } = string.Empty;
+        public ReadOnlyMemory<char> Name { get; init; }
 
         public override string ToString()
         {

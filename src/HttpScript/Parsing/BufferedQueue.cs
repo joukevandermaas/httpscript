@@ -12,7 +12,7 @@ namespace HttpScript.Parsing
         // allow users to jump back in time as far as dequeueing
         // is concerned, but preserve added items.
         // this allows the parser to backtrack without resetting the
-        // work that the lexer has already done.
+        // work that the tokenizer has already done.
         private Stack<int> restorePoints = new();
 
         public int Count => this.addIndex - this.dequeueIndex;

@@ -4,15 +4,21 @@ using static HttpScript.Parsing.Tokens.TokenType;
 
 namespace HttpScript.Parsing
 {
+    //public class AstNode
+    //{
+    //    public NodeType Type { get; }
+
+    //}
+
     public class Parser
     {
-        private readonly Lexer lexer;
+        private readonly Tokenizer tokenizer;
 
         private ParsingMode mode;
 
         public Parser(ReadOnlyMemory<char> program)
         {
-            this.lexer = new Lexer(program)
+            this.tokenizer = new Tokenizer(program)
             {
                 ParsingMode = ParsingMode.Breakout
             };
@@ -23,7 +29,7 @@ namespace HttpScript.Parsing
         {
             get
             {
-                _ = this.lexer.TryPeekToken(out var token);
+                _ = this.tokenizer.TryPeekToken(out var token);
                 return token;
             }
         }
@@ -32,17 +38,22 @@ namespace HttpScript.Parsing
 
         public bool TryParse()
         {
-            while (!this.lexer.IsComplete)
+            return Program();
+        }
+
+        private bool Program()
+        {
+            while (!this.tokenizer.HasMoreTokens)
             {
                 this.OptionalCommentOrWhiteSpace();
 
-                if (this.lexer.IsComplete)
+                if (this.tokenizer.HasMoreTokens)
                 {
                     // file ended with whitespace/comment
                     break;
                 }
 
-                if (!this.TryParseExpression())
+                if (!this.Expression())
                 {
                     // report error
                     return false;
@@ -52,58 +63,69 @@ namespace HttpScript.Parsing
             return true;
         }
 
+        /// <summary>
+        /// OptionalCommentOrWhiteSpace
+        ///   : opt(COMMENT | WHITESPACE)
+        /// </summary>
         private void OptionalCommentOrWhiteSpace()
         {
             while (
-                this.lexer.TryConsumeTokenOfType(WhiteSpace, out var _) ||
-                this.lexer.TryConsumeTokenOfType(Comment, out var _)
+                this.tokenizer.TryConsumeTokenOfType(WhiteSpace, out var _) ||
+                this.tokenizer.TryConsumeTokenOfType(Comment, out var _)
             ) ;
         }
 
-        private bool TryParseExpression()
+        private bool Expression()
         {
             var result =
-                this.TryParseAssignment() ||
-                this.TryParseSimpleValue();
+                this.Assignment() ||
+                this.Literal();
 
             return result;
         }
 
-        private bool TryParseAssignment()
+        /// <summary>
+        /// Assignment
+        ///   : SYMBOL = Expression
+        /// </summary>
+        private bool Assignment()
         {
-            if (!this.lexer.TryConsumeTokenOfType(Symbol, out _))
+            if (!this.tokenizer.TryConsumeTokenOfType(Symbol, out _))
             {
                 return false;
             }
 
-            this.lexer.PushRestorePoint();
+            this.tokenizer.PushRestorePoint();
 
             this.OptionalCommentOrWhiteSpace();
 
-            if (!this.lexer.TryConsumeTokenOfType<OperatorToken>(out var opToken)
+            if (!this.tokenizer.TryConsumeTokenOfType<OperatorToken>(out var opToken)
                 || opToken.OperatorType != OperatorType.Assignment)
             {
-                this.lexer.PopRestorePoint();
+                this.tokenizer.PopRestorePoint();
                 return false;
             }
 
             this.OptionalCommentOrWhiteSpace();
 
-            if (!this.TryParseExpression())
+            if (!this.Expression())
             {
-                this.lexer.PopRestorePoint();
+                this.tokenizer.PopRestorePoint();
                 return false;
             }
 
-            this.lexer.DiscardRestorePoint();
+            this.tokenizer.DiscardRestorePoint();
             return true;
         }
 
-        private bool TryParseSimpleValue()
+        /// <summary>
+        /// SimpleValue
+        ///   : STRING_LITERAL | SYMBOL
+        /// </summary>
+        private bool Literal()
         {
             var result =
-                this.lexer.TryConsumeTokenOfType(StringContent, out _) ||
-                this.lexer.TryConsumeTokenOfType(Symbol, out _);
+                this.tokenizer.TryConsumeTokenOfType(StringLiteral, out _);
 
             return result;
         }
